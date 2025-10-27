@@ -1,43 +1,42 @@
 #Aleksandr Polskiy
 #My sql connector
-import mysql.connector
+
 import os
-import argparse
+import sqlite3
+
+def setup_sqlite_db_query_output_file(output_file,sql_query):
+    conn = sqlite3.connect(':memory:')
+    cursor = conn.cursor()
+
+    # 2. Create a table
+    cursor.execute('''
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            email TEXT
+        )
+    ''')
+    conn.commit()
+
+    # 3. Insert data
+    cursor.execute("INSERT INTO users (name, last_name, email) VALUES (?, ?, ?)", ('George', 'Test1', 'georget1@xyz.com'))
+    cursor.execute("INSERT INTO users (name, last_name, email) VALUES (?, ?, ?)", ('Jonathan', 'Under_Test2', 'under_test2@xyz.com'))
+    conn.commit()
 
 
+    # 4. Query data
+    cursor.execute(sql_query)
 
-# Database connection details
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'your_username',
-    'password': 'your_password',
-    'database': 'your_database_name'
-}
+    results = cursor.fetchall()
+    print("Users in the database:")
 
-# SQL query
-SQL_QUERY = "SELECT * FROM AP_TEST;"
 
-# Output file path
-OUTPUT_FILE = 'output.txt'
+    # Determine file mode ('w' for write, 'a' for append)
+    file_mode = 'a' if os.path.exists(output_file) else 'w'
 
-def export_mysql_to_file(db_config, sql_query, output_file):
-    """
-    Connects to MySQL, executes a SELECT query, and writes/appends results to a file.
-    """
-    connection = None
-    try:
-        # Establish connection
-        connection = mysql.connector.connect(**db_config)
-        cursor = connection.cursor()
-
-        # Execute the query
-        cursor.execute(sql_query)
-        results = cursor.fetchall()
-
-        # Determine file mode ('w' for write, 'a' for append)
-        file_mode = 'a' if os.path.exists(output_file) else 'w'
-
-        # Write results to file
+    # Write results to file
+    if not (output_file is None) and not (output_file == ''):
         with open(output_file, file_mode) as f:
             if file_mode == 'w':
                 # Write header if creating a new file
@@ -45,17 +44,17 @@ def export_mysql_to_file(db_config, sql_query, output_file):
                 f.write(",".join(column_names) + "\n")
 
             for row in results:
+                print(row)
                 f.write(",".join(map(str, row)) + "\n")
 
-        print(f"Query results successfully written to {output_file} in '{file_mode}' mode.")
+            print(f"Query results successfully written to {output_file} in '{file_mode}' mode.")
+    # 5. Close the connection
+    conn.close()
 
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-    finally:
-        if connection and connection.is_connected():
-            cursor.close()
-            connection.close()
-            print("MySQL connection closed.")
+# Example usage
+sql_query = "SELECT * FROM users;"
+output_file = 'output_users.csv'
 
-# Call the function
-export_mysql_to_file(DB_CONFIG, SQL_QUERY, OUTPUT_FILE)
+
+if __name__ == "__main__":
+    setup_sqlite_db_query_output_file(output_file, sql_query)
