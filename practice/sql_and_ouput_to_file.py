@@ -1,5 +1,10 @@
+#Aleksandr Polskiy
+#My sql connector
 import mysql.connector
 import os
+import argparse
+
+
 
 # Database connection details
 DB_CONFIG = {
@@ -10,7 +15,7 @@ DB_CONFIG = {
 }
 
 # SQL query
-SQL_QUERY = "SELECT * FROM your_table_name;"
+SQL_QUERY = "SELECT * FROM AP_TEST;"
 
 # Output file path
 OUTPUT_FILE = 'output.txt'
