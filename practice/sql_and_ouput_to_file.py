@@ -1,5 +1,5 @@
 #Aleksandr Polskiy
-#My sql connector
+#sqliet database access simulation connector
 
 import os
 import sqlite3
