@@ -1,3 +1,9 @@
+#Aleksandr Polskiy practice of file manipulation
+#taking .csv file as an imput line by line then printing it
+#reading the file into dataframe printing it
+#saving it as .xlsx and .json
+#opening them reading them into dataframe and printing those dataframes
+
 import os
 import sys
 import pandas as pd
@@ -38,13 +44,13 @@ df.to_json('flowers.json', index=False)
 
 
 file_path = 'flowers.xlsx'
-df = pd.read_excel(file_path)
+df1 = pd.read_excel(file_path)
 print("Printing Data Frame from Excel")
-print(df.head())
+print(df1.head())
 
 
 file_path = 'flowers.json'
-df = pd.read_json(file_path)
+df2 = pd.read_json(file_path)
 print("Printing Data Frame from JSON")
-print(df.head())
+print(df2.head())
 
