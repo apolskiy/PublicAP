@@ -60,6 +60,7 @@ errors_list.insert(0, ('Error', 'Count'))
 
 # * Create CSV file user_statistics
 with open('user_statistics_practice.csv', 'w', newline='') as user_csv:
+    user_csv.write('Username,INFO,ERROR\n')
     for key, value in per_user_list:
         user_csv.write(str(key) + ',' +
                        str(value['INFO']) + ',' + str(value['ERROR'])+'\n')
@@ -67,4 +68,4 @@ with open('user_statistics_practice.csv', 'w', newline='') as user_csv:
 # * Create CSV error_message
 with open('error_message_practice.csv', 'w', newline='') as error_csv:
     for key, value in errors_list:
-        error_csv.write(str(key) + ' ' + str(value))
+        error_csv.write(str(key) + ' ' + str(value)+'\n')
