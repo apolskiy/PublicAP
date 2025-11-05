@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-import sys
+#Aleksandr Polskiy practice of extracting messages by application from syslog.log
+#calculating user statistic for INFO and ERROR messages for the app
+#Determining the error message counts per user
+
 import re
 import operator
-import csv
+
 
 # Dict: Count number of entries for each user
 per_user = {}  # Splitting between INFO and ERROR
