@@ -55,7 +55,7 @@ errors_list = sorted(errors.items(), key=operator.itemgetter(1), reverse=True)
 per_user_list = sorted(per_user.items(), key=operator.itemgetter(0))
 
 file.close()
-# Insert at the beginning of the list
+# Insert column names at the beginning of the list
 errors_list.insert(0, ('Error', 'Count'))
 
 # * Create CSV file user_statistics
