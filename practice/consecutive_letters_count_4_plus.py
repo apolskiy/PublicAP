@@ -29,7 +29,7 @@ def count_consecutive_letters(text):
         full_match = match.group(0)
 
         # The length of the full match is the number of consecutive letters.
-        length = len(full_match)
+        #length = len(full_match)
 
         # Update the dictionary. Each unique sequence (e.g., 'aaaa' vs 'bbbbb') is a different count.
         if letter in counts:
