@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+#Aleksandr Polskiy practice script counts consecutive repeated letters for DNA base pairs
+#in a string, where the number of consecutive letters is 4 or more.
+
 import re
 
 
@@ -9,7 +13,8 @@ def count_consecutive_letters(text):
         text (str): The input string to search.
 
     Returns:
-        dict: A dictionary with the letters as keys and their counts of the numbers of multiple occurrences as values.
+        dict: A dictionary with the letters as keys and their counts of the numbers of
+        multiple occurrences as values.
     """
     # Initialize an empty dictionary to store the counts.
     counts = {}
@@ -26,12 +31,12 @@ def count_consecutive_letters(text):
         letter = match.group(1)
 
         # The full matching string contains the sequence of repeated letters.
-        full_match = match.group(0)
+        #full_match = match.group(0)
 
         # The length of the full match is the number of consecutive letters.
         #length = len(full_match)
-
-        # Update the dictionary. Each unique sequence (e.g., 'aaaa' vs 'bbbbb') is a different count.
+        # Update the dictionary. Each unique sequence (e.g., 'aaaa' vs 'bbbbb')
+        # is a different count.
         if letter in counts:
             counts[letter] += 1
         else:
@@ -41,7 +46,7 @@ def count_consecutive_letters(text):
 
 
 # Example usage with a sample string
-sample_text = "ACGTGCTTTTTGGAAACTCCCAAAAATTTTCCCCCTTTTTAAAGGTCTAGATGTCAGTCTGCTGATTTCCCCTTAAAAAGGGGGTTTTTCCCCCTTTGGGGCCCCTTTTAAAGGGAAACCCAAAAGGGGGTTTTCAT"
+sample_text = ("ACGTGCTTTTTGGAAACTCCCAAAAATTTTCCCCCTTTTTAAAGGTCTAGATGTCAGTCTGCTGATTTCCCCTTAAAAAGGGGGTTTTTCCCCCTTTGGGGCCCCTTTTAAAGGGAAACCCAAAAGGGGGTTTTCAT")
 result = count_consecutive_letters(sample_text)
 
 print(result)
