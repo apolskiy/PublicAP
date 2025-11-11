@@ -1,3 +1,4 @@
+"""This script transforms phone numbers in a record string to US format."""
 import re
 def transform_record(record):
   new_record = re.sub(r'(?<!\+\d{1})((?:\d{3}-?){2}\d{4})',r"+1-\1",record)

@@ -1,6 +1,9 @@
 #Aleksandr Polskiy inserting data into table using SQL Lite then extracting that data using
 #select query into dataframe
 #Then doing a selection query from dataframe
+"""This script creates a table in memory
+using sqlite3 library then populates it with data. It then executes queries
+and prints the results tabulated in a custom manner"""
 import sqlite3
 import pandas as pd
 from tabulate import tabulate
@@ -34,7 +37,8 @@ cursor.execute("INSERT INTO users (name, age) VALUES ('Jonathan', 60)")
 cursor.execute("INSERT INTO products (product_name, price) VALUES ('Laptop', 1200.00)")
 cursor.execute("INSERT INTO products (product_name, price) VALUES ('Mouse', 25.50)")
 cursor.execute("INSERT INTO products (product_name, price) VALUES ('Wifi Headphones', 87.50)")
-cursor.execute("INSERT INTO products (product_name, price) VALUES ('External SSD Hard Drive', 242.27)")
+cursor.execute("INSERT INTO products (product_name, price) "
+               "VALUES ('External SSD Hard Drive', 242.27)")
 conn.commit()
 
 #Select * from users table and inserting it into dataframe df_users
@@ -49,5 +53,6 @@ print(tabulate(df_users, showindex=False, headers=df_users.columns, numalign="le
 print("\nProducts DataFrame:\n")
 #print(df_products)
 #print(df_products.to_string(justify='left'))
-print(tabulate(df_products, showindex=False, headers=df_products.columns, numalign="left",tablefmt="pretty"))
+print(tabulate(df_products, showindex=False, headers=df_products.columns,
+               numalign="left",tablefmt="pretty"))
 conn.close()
