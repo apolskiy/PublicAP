@@ -1,2 +1,2 @@
 # PublicAP
-I am editing the README file. Adding some more details about the project description.
+Under construction... Added simple practice scripts to practice folder.
