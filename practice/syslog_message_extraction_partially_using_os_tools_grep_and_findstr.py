@@ -22,40 +22,41 @@ import csv
 
 
 
-def run_command(f_command,pattern, filename, custom_command="",custom_pattern=""):
+def run_command(f_command,pattern, filename, custom_command="",custom_pattern="") -> str:
     """run_command function runs a command with a pattern on a file and optionally
     runs a second command with a custom pattern on the output of the first command."""
-    try:
+    if f_command != "" or f_command is not None:
+        try:
         # Construct the grep/findstr command
-        command = [f_command, pattern, filename]
-        command2 = [custom_command, custom_pattern]
-        if (custom_pattern != None) and (custom_pattern != ""):
-            result1 = subprocess.Popen(command, stdout=subprocess.PIPE)
-            result2 = subprocess.Popen(command2, stdin=result1.stdout, stdout=subprocess.PIPE)
+            command = [f_command, pattern, filename]
+            command2 = [custom_command, custom_pattern]
+            if custom_pattern is not None and custom_pattern != "":
+                with subprocess.Popen(command, stdout=subprocess.PIPE) as process1:
 
-            result1.stdout.close()
-            result= result2.communicate()[0].decode().strip()
-            result2.stdout.close()
-            print(result)
-            return result
+                    with subprocess.Popen(command2, stdin=process1.stdout,
+                                          stdout=subprocess.PIPE) as process2:
+                        result = process2.communicate()[0].decode().strip()
 
-        else:
+
+
+                print(result)
+                return result
+
+
             result = subprocess.run(command, capture_output=True, text=True, check=True)
-
             return result.stdout
 
-    except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as e:
 
-        print(f"Error executing grep: {e}")
+            print(f"Error executing grep: {e}")
+            print(f"Stderr: {e.stderr}")
+            return "ERROR EXECUTING GREP!"
+        except FileNotFoundError:
+            print(f"Error: {f_command} command or file '{filename}' not found.")
+            return "ERROR: FILE OR COMMAND NOT FOUND!"
+    return "Generic Error"
 
-        print(f"Stderr: {e.stderr}")
-
-    except FileNotFoundError:
-
-        print(f"Error: {f_command} command or file '{filename}' not found.")
-
-
-def extract_counts(data, pattern=""):
+def extract_counts(data, pattern="") -> dict:
     """extract_counts function counts occurrences of a pattern in log data."""
     search_data = data.splitlines()
 
@@ -63,7 +64,7 @@ def extract_counts(data, pattern=""):
     #print(search_data)
     #print("\n")
     if pattern.upper() == "ERROR" or pattern.upper()=="INFO":
-        return_data = {}#defaultdict(int)
+        return_data = {}
         # skipping use of defaultdict simplifies incrementing
         for line in search_data:
             if re.search(pattern, line):
@@ -159,36 +160,36 @@ def data_to_file(file_path, data,column_names):
             for element in row_tuple:
                 if isinstance(element, dict):
                     dict_found=True
-                    num_elements = len(element)
-            if not dict_found:
-                csv_writer.writerow(row_tuple)
-            else:
-                for item in (element):
-                    selected_element =(row_tuple[0],item,element[item])
-                    csv_writer.writerow(selected_element)
+                    for item in element.items():
+                        selected_element = (row_tuple[0], item[0], item[1])
+                        csv_writer.writerow(selected_element)
+
+                    if not dict_found:
+                        csv_writer.writerow(row_tuple)
 
 
-    csvfile.close()
+    #csvfile.close()
 
 
 
 if __name__ == "__main__":
 
-    first_pattern  =   "ticky:"
+    FIRST_PATTERN = "ticky:"
     if sys.platform.startswith('linux'):
         print("Operating in Linux Environment")
-        findCommand="grep"
+        FIND_COMMAND="grep"
     elif sys.platform.startswith('win'):
         print("Operating in Windows Environment")
-        findCommand="findstr"
+        FIND_COMMAND="findstr"
     else:
         print("Operating in Unknown Environment")
         sys.exit(1)
 
 
-    SECOND_COMMAND  = findCommand
+    SECOND_COMMAND  = FIND_COMMAND
     SECOND_PATTERN = "ERROR"
-    get_errors = run_command(findCommand, first_pattern, "syslog.log", SECOND_COMMAND, SECOND_PATTERN)
+    get_errors = run_command(FIND_COMMAND, FIRST_PATTERN, "syslog.log",
+                             SECOND_COMMAND, SECOND_PATTERN)
 
 
     err_data = extract_counts(get_errors, pattern="ERROR")
@@ -200,7 +201,7 @@ if __name__ == "__main__":
 
 
 
-    get_all_messages = run_command(findCommand, first_pattern, "syslog.log")
+    get_all_messages = run_command(FIND_COMMAND, FIRST_PATTERN, "syslog.log")
     user_data = extract_counts(get_all_messages, pattern="USER")
 
 
