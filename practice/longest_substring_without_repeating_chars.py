@@ -1,4 +1,4 @@
-#Alexx practice. Find the longest substring without repeating characters.
+#Alex Polskiy practice. Find the longest substring without repeating characters.
 
 def length_of_longest_non_repeating_substring(full_string: str) -> int:
     char_set = set()

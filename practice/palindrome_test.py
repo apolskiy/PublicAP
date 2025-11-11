@@ -1,13 +1,13 @@
-#Alex polskiy following function is a palindrome test
-from operator import truediv
+"""Alex polskiy following function is a palindrome test
+from operator import truediv"""
 
 
-#Function returns TRUE if the string is a palindrome, FALSE otherwise
 def palindrome(full_string :str) -> bool:
+    """palindrome function returns TRUE if the string is a palindrome, FALSE otherwise"""
     if full_string == full_string[::-1]:
         return True
-    else:
-        return False
+
+    return False
 
 
 if __name__ == "__main__":

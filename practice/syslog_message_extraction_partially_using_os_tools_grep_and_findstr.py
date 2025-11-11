@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
 #Aleksandr Polskiy
-#This script opens syslog.log and extracts on linux using grep on windows using findstr
-#all messages associated with an app named ticky
-#After the data is extracted all error messages are filtered out and counted and outputted with message text
-#and the number of times said text has occurred to error_message.csv
-#Also a count of all info and error  messages is made for every user that has logged at least one info or error message
-#Those counts are outputted into user_statistics.csv
-#though it would have been simpler for this filtration to be done in grep or findstr all the way using subprocess
-#I have chosen to do it in a more complex way, in order to highlight utilization of various Python features and capabilities
+"""This script opens syslog.log and extracts on linux using grep on windows using findstr
+all messages associated with an app named ticky
+After the data is extracted all error messages are filtered out and counted and
+outputted with message text and the number of times said text has occurred
+to error_message.csv
+Also a count of all info and error  messages is made for every user that has logged at
+least one info or error message
+Those counts are outputted into user_statistics.csv"""
+#Though it would have been simpler for this filtration to be done in grep or
+# findstr all the way using subprocess
+#I have chosen to do it in a more complex way, in order to highlight utilization of various
+# Python features and capabilities
 
 
 import sys
 import subprocess
 import re
 import csv
-from collections import defaultdict
+#from collections import defaultdict
 
 
 
 def run_command(f_command,pattern, filename, custom_command="",custom_pattern=""):
+    """run_command function runs a command with a pattern on a file and optionally
+    runs a second command with a custom pattern on the output of the first command."""
     try:
-        # Construct the grep command
+        # Construct the grep/findstr command
         command = [f_command, pattern, filename]
         command2 = [custom_command, custom_pattern]
         if (custom_pattern != None) and (custom_pattern != ""):
@@ -50,6 +56,7 @@ def run_command(f_command,pattern, filename, custom_command="",custom_pattern=""
 
 
 def extract_counts(data, pattern=""):
+    """extract_counts function counts occurrences of a pattern in log data."""
     search_data = data.splitlines()
 
     #print("\nSearch DATA:\n")
@@ -57,7 +64,7 @@ def extract_counts(data, pattern=""):
     #print("\n")
     if pattern.upper() == "ERROR" or pattern.upper()=="INFO":
         return_data = {}#defaultdict(int)
-        # Using defaultdict simplifies incrementing
+        # skipping use of defaultdict simplifies incrementing
         for line in search_data:
             if re.search(pattern, line):
                 print("splitting line"+str(line))
@@ -135,12 +142,12 @@ def extract_counts(data, pattern=""):
 
 
 def data_to_file(file_path, data,column_names):
-
+    """data_to_file function writes data to a CSV file with specified column names."""
     print("\nData to write to file:\n")
     print(data)
     print(type(data))
 
-    with open(file_path, 'w', newline='') as csvfile:
+    with open(file_path, 'w', newline='',encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
 
         # Write the header row
@@ -169,18 +176,19 @@ if __name__ == "__main__":
 
     first_pattern  =   "ticky:"
     if sys.platform.startswith('linux'):
-        print("Operating in Linux Envirnonment")
-        command="grep"
+        print("Operating in Linux Environment")
+        findCommand="grep"
     elif sys.platform.startswith('win'):
-        print("Operating in Windows Envirnonment")
-        command="findstr"
+        print("Operating in Windows Environment")
+        findCommand="findstr"
     else:
-        print("Operating in Unknown Envirnonment")
+        print("Operating in Unknown Environment")
+        sys.exit(1)
 
 
-    second_command  = command
-    second_pattern = "ERROR"
-    get_errors = run_command(command, first_pattern, "syslog.log", second_command, second_pattern)
+    SECOND_COMMAND  = findCommand
+    SECOND_PATTERN = "ERROR"
+    get_errors = run_command(findCommand, first_pattern, "syslog.log", SECOND_COMMAND, SECOND_PATTERN)
 
 
     err_data = extract_counts(get_errors, pattern="ERROR")
@@ -192,7 +200,7 @@ if __name__ == "__main__":
 
 
 
-    get_all_messages = run_command(command, first_pattern, "syslog.log")
+    get_all_messages = run_command(findCommand, first_pattern, "syslog.log")
     user_data = extract_counts(get_all_messages, pattern="USER")
 
 

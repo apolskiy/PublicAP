@@ -1,21 +1,21 @@
-#Aleksandr Polskiy practice of file manipulation
-#taking .csv file as an input line by line then printing it
-#reading the file into dataframe printing it
-#saving it as .xlsx and .json
-#opening them reading them into dataframe and printing those dataframes
+"""Aleksandr Polskiy practice of file manipulation
+taking .csv file as an input line by line then printing it
+reading the file into dataframe printing it
+saving it as .xlsx and .json
+opening them reading them into dataframe and printing those dataframes"""
 
 import os
 import sys
 import pandas as pd
-import csv
 from tabulate import tabulate
 file_path = 'flowers.csv'
 data = []
 
 if os.path.exists(file_path):
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding="utf-8") as file:
         for line in file:
-            data.append(line.strip()) # .strip() removes leading/trailing whitespace including newlines
+            # .strip() removes leading/trailing whitespace including newlines
+            data.append(line.strip())
     file.close()
 else:
     print(f"Error: File '{file_path}' not found.")
@@ -50,4 +50,3 @@ df2 = pd.read_json(file_path)
 print("\nPrinting tabulated with header separation DataFrame from JSON:")
 #print(df2.head())
 print(tabulate(df2, showindex=False, headers=df2.columns, numalign="left",tablefmt="pretty"))
-

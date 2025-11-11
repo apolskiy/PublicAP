@@ -1,10 +1,13 @@
 #Aleksandr Polskiy
-#sqliet database access simulation connector
+"""sqlite database access simulation connector creating tables than querying data"""
 
 import os
 import sqlite3
 
 def setup_sqlite_db_query_output_file(output_file,sql_query):
+    """setup_sqlite_db_query_output_file function sets up a SQLite database in memory,
+    creates a 'users' table, populates it with sample data, executes a SQL query,
+    and optionally writes the results to a CSV file."""
     conn = sqlite3.connect(':memory:')
     cursor = conn.cursor()
 
@@ -20,8 +23,10 @@ def setup_sqlite_db_query_output_file(output_file,sql_query):
     conn.commit()
 
     # 3. Insert data
-    cursor.execute("INSERT INTO users (name, last_name, email) VALUES (?, ?, ?)", ('George', 'Test1', 'georget1@xyz.com'))
-    cursor.execute("INSERT INTO users (name, last_name, email) VALUES (?, ?, ?)", ('Jonathan', 'Under_Test2', 'under_test2@xyz.com'))
+    cursor.execute("INSERT INTO users (name, last_name, email) VALUES (?, ?, ?)",
+                   ('George', 'Test1', 'georget1@xyz.com'))
+    cursor.execute("INSERT INTO users (name, last_name, email) VALUES (?, ?, ?)",
+                   ('Jonathan', 'Under_Test2', 'under_test2@xyz.com'))
     conn.commit()
 
 
@@ -36,8 +41,8 @@ def setup_sqlite_db_query_output_file(output_file,sql_query):
     file_mode = 'a' if os.path.exists(output_file) else 'w'
 
     # Write results to file
-    if not (output_file is None) and not (output_file == ''):
-        with open(output_file, file_mode) as f:
+    if not output_file is None and not output_file == '':
+        with open(output_file, file_mode, encoding='utf-8') as f:
             if file_mode == 'w':
                 # Write header if creating a new file
                 column_names = [i[0] for i in cursor.description]
@@ -51,10 +56,11 @@ def setup_sqlite_db_query_output_file(output_file,sql_query):
     # 5. Close the connection
     conn.close()
 
-# Example usage
-sql_query = "SELECT * FROM users;"
-output_file = 'output_users.csv'
+
 
 
 if __name__ == "__main__":
-    setup_sqlite_db_query_output_file(output_file, sql_query)
+    # Example usage
+    SQL_QUERY = "SELECT * FROM users;"
+    OUTPUT_FILE = 'output_users.csv'
+    setup_sqlite_db_query_output_file(OUTPUT_FILE, SQL_QUERY)
