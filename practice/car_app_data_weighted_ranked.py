@@ -1,14 +1,18 @@
 #Aleksandr Polskiy practice on sample app data
 #car data: period as an array of dictionaries is parsed and printed
-#Then alternatively this array of dictionaries is extracted into a pandas dataframe, where each dictionary
-# is a row and each datapoint in the dictionary is a column
-#Inserting four additional columns ranking each relevant datapoint in individual dictionary then
-# inserting final column which includes average of the sum of all ranking columns for this row (dictionary)each ranks
+#Then alternatively this array of dictionaries is extracted into a pandas dataframe,
+# where each dictionaryis a row and each datapoint in the dictionary is a column
+#Inserting four additional columns ranking each relevant datapoint in individual
+# dictionary then inserting final column which includes average
+# of the sum of all ranking columns for this row (dictionary)each ranks
+"""an array of dictionaries containing app data from a car for example, is parsed
+into a pandas dataframe, where certain data poins are weighted and then ranked"""
 import pandas as pd
 import numpy as np
 
 #function that prints key value pairs prom a nested dictionaries
 def print_nested_dict(d, indent=0):
+    """This function prints key value pairs from a nested dictionary"""
     for key, value in d.items():
         print(' '*indent+str(key)+':', end=' ')
         if isinstance(value, dict):
@@ -77,7 +81,9 @@ period = [
 #extracting and printing particular values from period an array of dictionaries
 for item in period:
     print("\n")
-    print(item["app"]+":"+str(item["fps_data"]["l_frame"])+":"+str(item["fps_data"]["sframe"])+":"+str(item["fps_data"]["fps"])+":"+str(item["fps_data"]["frames_over_25ms"]))
+    print(item["app"]+":"+str(item["fps_data"]["l_frame"])+
+          ":"+str(item["fps_data"]["sframe"])+":"+str(item["fps_data"]["fps"])+":"+
+          str(item["fps_data"]["frames_over_25ms"]))
     print("\n")
 
 #extracting and printing key value pairs from particular dictionary
@@ -117,7 +123,8 @@ fps_selections=[
 
 
 
-#setting ranking for length of frame, jitter (number of frames with over 25ms length), and fps, where average length of a frame was over 16.67ms
+#setting ranking for length of frame, jitter (number of frames with over 25ms length),
+# and fps, where average length of a frame was over 16.67ms
 df['max_l_ranking'] = np.select(l_conditions, l_selections, default=1)
 df['jitter_ranking'] = df['frames_over_25ms']+1
 df['fps_ranking'] = np.select(fps_conditions, fps_selections, default=1)
@@ -136,7 +143,6 @@ print("\n Values sorted by final_ranking")
 df_final_ranking = df.sort_values(by='final_ranking')
 
 print("\n Ranking selection of values sorted")
-df_print_ranking = df_final_ranking[['app','max_l_ranking','jitter_ranking','fps_ranking','final_ranking']]
+df_print_ranking = df_final_ranking[['app','max_l_ranking','jitter_ranking',
+                                     'fps_ranking','final_ranking']]
 print(df_print_ranking.to_string())
-
-
