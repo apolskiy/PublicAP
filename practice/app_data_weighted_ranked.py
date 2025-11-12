@@ -1,12 +1,13 @@
 #Aleksandr Polskiy practice on sample app data
-#car data: period as an array of dictionaries is parsed and printed
+#applicaiton data: period as an array of dictionaries is parsed and printed
 #Then alternatively this array of dictionaries is extracted into a pandas dataframe,
-# where each dictionaryis a row and each datapoint in the dictionary is a column
+# where each dictionary is a row and each datapoint in the dictionary is a column
 #Inserting four additional columns ranking each relevant datapoint in individual
 # dictionary then inserting final column which includes average
 # of the sum of all ranking columns for this row (dictionary)each ranks
-"""an array of dictionaries containing app data from a car for example, is parsed
-into a pandas dataframe, where certain data poins are weighted and then ranked"""
+"""an array of dictionaries containing app data from a map software, or a
+phone or a nav system for example, is parsed
+into a pandas dataframe, where certain data points are weighted and then ranked"""
 import pandas as pd
 import numpy as np
 
