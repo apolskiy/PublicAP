@@ -57,8 +57,10 @@ if __name__ == "__main__":
 
     num_processes = os.cpu_count() or 4  # Use all available CPU cores or a default
 
+    #original rsync run without multiprocessing:
+    #subprocess.call(["rsync", "-arq", src, dest])
 
-
+    #multiprocessed rsync run as a pool
     with Pool(processes=num_processes) as pool:
 
         # Map the rsync_worker function to each item, passing destination and options
@@ -71,4 +73,4 @@ if __name__ == "__main__":
 
 
 
-    #subprocess.call(["rsync", "-arq", src, dest])
+
