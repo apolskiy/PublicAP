@@ -1,0 +1,45 @@
+[
+  {
+    "status": "success",
+    "data": {
+      "user": {
+        "id": 404,
+        "name": "John",
+        "address": {
+          "city": "New York",
+          "zip": "40004"
+        }
+      },
+      "roles": ["admin", "editor"]
+    }
+  },
+  {
+    "status": "success",
+    "data": {
+      "user": {
+        "id": 505,
+        "name": "Kevin",
+        "address": {
+          "city": "New Jersey",
+          "zip": "50005"
+        }
+      },
+      "roles": ["tester", "editor"]
+    }
+  },
+
+  {
+    "status": "success",
+    "data": {
+      "user": {
+        "id": 606,
+        "name": "Smith",
+        "address": {
+          "city": "San Francisco",
+          "zip": "60006"
+      }
+    },
+    "roles": ["analyst", "editor"]
+  }
+}
+]

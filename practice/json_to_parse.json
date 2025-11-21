@@ -1,0 +1,46 @@
+{
+  "company_info": {
+    "companyName": "TechSolutions Inc.",
+    "location": {
+      "city": "San Francisco",
+      "state": "CA",
+      "zipCode": "94107"
+    }
+  },
+  "employees": [
+    {
+      "id": "TS001",
+      "firstName": "Alice",
+      "lastName": "Smith",
+      "position": "Software Engineer",
+      "skills": ["Python", "Java", "SQL"],
+      "projects": [
+        {"name": "Project Alpha", "status": "Completed"},
+        {"name": "Project Beta", "status": "InProgress"}
+      ]
+    },
+    {
+      "id": "TS002",
+      "firstName": "Bob",
+      "lastName": "Johnson",
+      "position": "Data Scientist",
+      "skills": ["R", "Python", "Machine Learning"],
+      "projects": [
+        {"name": "Project Gamma", "status": "InProgress"}
+      ]
+    },
+    {
+      "id": "TS003",
+      "firstName": "Charlie",
+      "lastName": "Brown",
+      "position": "Project Manager",
+      "skills": ["Agile", "Scrum"],
+      "projects": []
+    }
+  ],
+  "departments": {
+    "Engineering": ["Alice Smith", "Bob Johnson"],
+    "Human Resources": ["Eve Davis"],
+    "Project Management": ["Charlie Brown"]
+  }
+}
