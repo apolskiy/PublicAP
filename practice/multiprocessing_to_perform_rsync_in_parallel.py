@@ -35,8 +35,6 @@ def rsync_worker(source_item, destination_base, rsync_opts):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Processes source and '
                                                  'destination directories for rsync.')
-    parser.add_argument('-h','--help',
-                        help='A geographical location to be searched')
     parser.add_argument('-d','--dest',type=str, default="/data/prod/",
                         help='Destination directory')
     parser.add_argument('-s','--src', type=str,

@@ -1,5 +1,4 @@
-"""Alex polskiy following function is a palindrome test
-from operator import truediv"""
+"""Alex Polskiy following function is a palindrome test"""
 
 
 def palindrome(full_string :str) -> bool:
