@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="webcam_test" errors="0" failures="0" skipped="0" tests="1" time="5.733" timestamp="2026-01-15T16:34:52.391226-08:00" hostname="APLEGION"><testcase classname="webcam_test.WebcamTest" name="test_webcam" time="5.682" /></testsuite></testsuites>
