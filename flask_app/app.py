@@ -1,8 +1,9 @@
-"""Aleksandr Polskiy practice flask app that returns error codes depending on url"""
+"""Aleksandr Polskiy practice flask app that returns error codes depending on url
+default page displays error supported codes table"""
 
-from flask import Flask, abort, render_template_string,render_template
+from flask import Flask, abort, render_template_string
+from werkzeug.exceptions import HTTPException
 app = Flask(__name__)
-from flask import Flask
 
 SUPPORTED_ERROR_CODES = {
     400: "Bad Request",
@@ -11,7 +12,6 @@ SUPPORTED_ERROR_CODES = {
     404: "Not Found",
     405: "Method Not Allowed",
     406: "Not Acceptable",
-    407: "Proxy Authentication Required",
     408: "Request Timeout",
     409: "Conflict",
     410: "Gone",
@@ -32,6 +32,7 @@ app = Flask(__name__)
 @app.route('/')
 
 def index():
+    """Displays default page with error codes table"""
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -92,7 +93,7 @@ def index():
 def return_status_code(code):
     """
     Returns the specified HTTP error code.
-    If the code is not supported or invalid, it defaults to a 404 or can be handled as a 500 if the code is invalid.
+    If the code is not supported or invalid, it defaults to a 404.
     """
     if code in SUPPORTED_ERROR_CODES:
         # Use abort() to raise the HTTPException which can be handled by an error handler,
@@ -101,14 +102,26 @@ def return_status_code(code):
 
         description = SUPPORTED_ERROR_CODES[code]
         return f"<h1>{code} - {description}</h1>", code
-    else:
-        # If the return code is not on the list
-        abort(404)
 
-@app.errorhandler(404)
-def page_not_found(error):
-    return render_template('404.html'), 404
+    # If the return code is not on the list
+    abort(404)
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """
+    This function safely handles both manual abort() calls
+    and unexpected Python errors.
+    """
+    # 1. If it's a Flask HTTP error (like from abort(404)), use its own data
+    if isinstance(e, HTTPException):
+        # Access .code and .name safely from the HTTPException object
+        return f"<h1>{e.code}: {e.name}</h1><p>{e.description}</p>", e.code
+
+    # 2. If it's a real code error (e.g., ZeroDivisionError), return a 500
+    # This prevents the handler from crashing and hiding the real issue
+    return ("<h1>500: Internal Server Error</h1><p>The "
+            "server encountered an unexpected condition.</p>"), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
-
