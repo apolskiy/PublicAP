@@ -1,7 +1,10 @@
-import cv2
+"""Aleksandr Polskiy this script is testing if the webcam is working and that stream can be closed by the user, by pressing 'q'"""
 import unittest
+import cv2
+
 
 def webcamtest():
+    """Testing if the webcam is working and that stream can be closed by the user, by pressing 'q'"""
     # 0 is usually the default camera; change if needed [2, 4]
     cap = cv2.VideoCapture(0)
 
@@ -26,8 +29,9 @@ def webcamtest():
     return True
 
 class WebcamTest( unittest.TestCase):
+    @staticmethod
     def test_webcam(self):
-        assert webcamtest() == True
+        assert webcamtest() is True
 
 if __name__ == "__main__":
     unittest.main()
