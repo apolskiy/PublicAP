@@ -24,7 +24,7 @@ def create_host_metrics_dataset(num_entries, num_hosts):
 
     # 3. Generate CPU Usage (Gaussian/Normal distribution around specific parameters)
     # Simulate different typical CPU usages for different hosts
-    cpu_means = {f'host_{i + 1:02d}': np.random.uniform(20, 70) for i in range(num_hosts)}
+    cpu_means = {f'host_{i + 1:02d}': np.random.uniform(10, 90) for i in range(num_hosts)}
     cpu_stds = {f'host_{i + 1:02d}': np.random.uniform(5, 15) for i in range(num_hosts)}
 
     cpu_usage = []

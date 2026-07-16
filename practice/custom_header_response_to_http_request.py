@@ -149,7 +149,7 @@ class CustomRequestHandler(http.server.BaseHTTPRequestHandler):
             if httpd:
                 httpd.server_close()
                 sys.exit(0)
-            # Action handled by the server wrapper function
+
         elif code == 999:
             self._send_custom_response(999, {"error":
                                                  "Internal Script Error"})

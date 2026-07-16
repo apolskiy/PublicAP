@@ -37,11 +37,11 @@ def count_consecutive_letters(text):
         #length = len(full_match)
         # Update the dictionary. Each unique sequence (e.g., 'aaaa' vs 'bbbbb')
         # is a different count.
-        if letter in counts:
-            counts[letter] += 1
-        else:
-            counts[letter] = 1
-
+        #if letter in counts:
+        #    counts[letter] += 1
+        #else:
+        #    counts[letter] = 1
+        counts[letter]= counts.get(letter, 0) + 1
     return counts
 
 
