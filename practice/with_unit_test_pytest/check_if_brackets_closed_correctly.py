@@ -1,6 +1,7 @@
 """Aleksandr Polskiy practice of checking if brackets are correctly nested in a string."""
 import unittest
 
+
 def verify_brackets(input: str) -> bool:
     """
     Checks if a string has balanced and correctly nested brackets.
