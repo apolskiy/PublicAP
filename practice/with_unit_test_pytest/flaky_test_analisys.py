@@ -1,13 +1,13 @@
-"""Aleksandr Polskiy this script takes a list of test result tuples, parses it
-and determines if test are flaky depending on whether the following
-combinations of test results are present PASS and FAIL, PASS and SKIP,
+"""Aleksandr Polskiy this script takes a list of experimental_tests result tuples, parses it
+and determines if experimental_tests are flaky depending on whether the following
+combinations of experimental_tests results are present PASS and FAIL, PASS and SKIP,
 FAIL and SKIP, if they are tests need to be fixed in order to run. SKIPs in themselves
-are treated same as FAIL, as test FAILS to setup and execute.
+are treated same as FAIL, as experimental_tests FAILS to setup and execute.
 List of flaky tests is printed in the end"""
 import unittest
 
 def print_flaky_tests(input:list[tuple]):
-    """Function extracts test results form a list of tuples
+    """Function extracts experimental_tests results form a list of tuples
     and appends them to dictionary, while evaluating if tests are flaky"""
     testresults={}
     flaky_tests=set()

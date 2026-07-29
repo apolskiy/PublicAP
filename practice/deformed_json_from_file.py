@@ -26,7 +26,7 @@ def print_json(data: list | dict):
     if isinstance(data, dict):
         for key, value in data.items():
             if isinstance(value, dict):
-                print(f"Key: {key}")  # Print the key before descending into nested structure
+                print(f"Dictionary: {key}")  # Print the key before descending into nested structure
                 print_json(value)
             else:
                 print(f"{key}:{value}")

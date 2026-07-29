@@ -1,8 +1,3 @@
-
-
-
-
-
 def print_duplicates_dict(x:list[int]):
     duplicates = {}
     for item in range(len(x)):
@@ -10,13 +5,14 @@ def print_duplicates_dict(x:list[int]):
 
     for key, value in duplicates.items():
         if value > 1:
-            print(f"Number {key} is found {value} times")
+            print(f"{key} ")
+        #if value == 1:
+            #print(f"Number {key} is found {value} time")
 
-def print_duplicates_count(x:list[int]):
-    counts = Counter(x)
-    for :
 
-if __name__="__main__":
+
+
+if __name__=="__main__":
 
     print_duplicates_dict(x = [1,2,2,3,3,4,1])
 

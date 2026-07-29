@@ -1,7 +1,7 @@
 """Aleksandr Polskiy practice of finding a concatenation of a substring list in a string.
 Substring consists of a list of words all equal length, where substring can be concatenated
 in various permutations
-Probem is solved using sliding window the size of all substrings
+Problem is solved using sliding window the size of all substrings
 put together, sliding along the target string"""
 
 from collections import Counter, defaultdict

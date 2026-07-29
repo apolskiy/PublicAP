@@ -7,7 +7,7 @@ def find_biggest_gap(prices:list) ->int:
     from participation"""
 
     #evaluating input prices list
-    if not prices or len(prices) < 1:
+    if not prices or len(prices) <= 1:
         return 0
     #proceeding only if prices list has more than one item.
     max_gap = 0

@@ -1,5 +1,5 @@
 """Alex Polskiy following function is a palindrome high performance
-test without using string operations"""
+experimental_tests without using string operations"""
 class Palindrome:
     """class palindrome defines high performance object"""
     def ispalindrome(self, x: int) -> bool:

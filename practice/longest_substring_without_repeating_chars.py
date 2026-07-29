@@ -5,9 +5,9 @@ def length_of_longest_non_repeating_substring(full_string: str) -> int:
     char_set = set()
     location = 0
     max_length = 0
-    length_full_string = len(full_string)
+    #length_full_string = len(full_string)
 
-    for spot in range(length_full_string):
+    for spot in range(len(full_string)):
         # Shrink the window if a duplicate is found
         while full_string[spot] in char_set:
             char_set.remove(full_string[location])

@@ -1,4 +1,4 @@
-"""Alex Polskiy following function is a palindrome test"""
+"""Alex Polskiy following function is a palindrome experimental_tests"""
 
 
 def palindrome(full_string :str) -> bool:
