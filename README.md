@@ -3,14 +3,14 @@
 
 Practice and utility scripts, plus two **HTTP service emulators** built to make failure conditions reproducible on demand. Real upstream services fail on their own schedule; these let a test suite ask for a specific failure and get it every time.
 
-- [`practice/custom_header_response_to_http_request.py`](practice/custom_header_response_to_http_request.py) — stdlib HTTP server driven by a caller-number payload
-- [`flask_app/`](flask_app) — Flask HTTP error-code simulator, published to Docker Hub as [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_app)
+- [`practice/custom_header_response_to_http_request.py`](practice/custom_header_response_to_http_request.py) - stdlib HTTP server driven by a caller-number payload
+- [`flask_app/`](flask_app) - Flask HTTP error-code simulator, published to Docker Hub as [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_app)
 
 ---
 
 ## 1. Caller-Number HTTP Emulator
 
-`practice/custom_header_response_to_http_request.py` — a single-file server on **port 8080** built on `http.server` / `socketserver.TCPServer`, with no third-party dependencies.
+`practice/custom_header_response_to_http_request.py` - a single-file server on **port 8080** built on `http.server` / `socketserver.TCPServer`, with no third-party dependencies.
 
 ```bash
 python practice/custom_header_response_to_http_request.py
@@ -38,16 +38,16 @@ With no request body, the server falls back to the **`X-Caller-Number`** header,
 curl -X GET http://localhost:8080 -H "X-Caller-Number: 404"
 ```
 
-All five verbs — **GET, POST, PUT, DELETE, PATCH** — route through the same logic, so any code can be exercised against any method.
+All five verbs - **GET, POST, PUT, DELETE, PATCH** - route through the same logic, so any code can be exercised against any method.
 
 ### Behaviour by code
 
 | Code | Behaviour |
 | --- | --- |
-| `201` | Returns `{"session_id": "<uuid4>"}` — emulates session creation with a fresh identifier per call |
-| `590` | Sleeps **120 seconds** without responding — the caller sees a hung backend and must handle its own timeout |
-| `591` | Closes the listening socket, waits **60 seconds**, then attempts to serve again — emulates a service bounce mid-suite |
-| `592` | Closes the socket and exits — emulates a service that goes away and stays away |
+| `201` | Returns `{"session_id": "<uuid4>"}` - emulates session creation with a fresh identifier per call |
+| `590` | Sleeps **120 seconds** without responding - the caller sees a hung backend and must handle its own timeout |
+| `591` | Closes the listening socket, waits **60 seconds**, then attempts to serve again - emulates a service bounce mid-suite |
+| `592` | Closes the socket and exits - emulates a service that goes away and stays away |
 | `999` | Sentinel for "the request could not be interpreted" (see below) |
 | any other | Echoes `{"status": "Response with code N"}` with `N` as the HTTP status |
 
@@ -68,13 +68,13 @@ After sending a `999` the process exits non-zero, so a misconfigured test run fa
 
 ### Known limitation
 
-The server is **single-threaded** by design, which is what makes `590` a genuine stall — the sleep blocks the whole process, exactly as an unresponsive upstream would. The same property limits `591` and `592`: as noted in the script's own closing comment, fully restarting a listener from inside its own request handler is not reliably achievable in this model, and a threaded server or a process supervisor would be needed to make the bounce robust. Use `590` and the standard codes for automated runs; treat `591` and `592` as manual exercises.
+The server is **single-threaded** by design, which is what makes `590` a genuine stall - the sleep blocks the whole process, exactly as an unresponsive upstream would. The same property limits `591` and `592`: as noted in the script's own closing comment, fully restarting a listener from inside its own request handler is not reliably achievable in this model, and a threaded server or a process supervisor would be needed to make the bounce robust. Use `590` and the standard codes for automated runs; treat `591` and `592` as manual exercises.
 
 ---
 
 ## 2. Flask HTTP Error Code Simulator
 
-`flask_app/app.py` — a Flask service that returns any of **21 supported status codes** on request, with a browsable index page listing every one as a clickable link.
+`flask_app/app.py` - a Flask service that returns any of **21 supported status codes** on request, with a browsable index page listing every one as a clickable link.
 
 ```bash
 cd flask_app
@@ -94,7 +94,7 @@ curl -i http://localhost:4000/error/503
 | --- | --- |
 | 4xx client | `400` `401` `403` `404` `405` `406` `408` `409` `410` `411` `412` `413` `414` `415` `416` `417` `419` |
 | 5xx server | `500` `501` `503` |
-| Non-standard | `600` (Custom Error) — verifies that a client handles a status outside the registered range |
+| Non-standard | `600` (Custom Error) - verifies that a client handles a status outside the registered range |
 
 `402 Payment Required` and `407 Proxy Authentication Required` are absent from the set; every code present is reachable without a payment or proxy layer in front of the service. `419` is likewise non-standard (Insufficient Space on Resource), included because it appears in the wild from some WebDAV and framework stacks.
 
@@ -107,7 +107,7 @@ A single `@app.errorhandler(Exception)` distinguishes the two cases that matter 
 - a `werkzeug.exceptions.HTTPException` (any `abort()`) is rendered with its own code and name
 - a genuine Python error becomes a **500**, rather than escaping and hiding the real fault
 
-This is what keeps the simulator honest — a bug in the simulator surfaces as a 500 with a distinct body, not as a corrupted version of the status the caller asked for.
+This is what keeps the simulator honest - a bug in the simulator surfaces as a 500 with a distinct body, not as a corrupted version of the status the caller asked for.
 
 ### Containerized use
 
@@ -164,4 +164,4 @@ PublicAP/
 
 ## Notes
 
-`flask_app/requirements.txt` is a full environment freeze rather than the app's actual dependency set — the simulator itself needs only Flask and its transitive dependencies. Installing the file pulls in Jupyter, pandas, scikit-learn, SQLAlchemy, and matplotlib, which is why the container image is far larger than a small Flask app warrants. Narrowing it to `Flask` before treating the image as a lightweight CI dependency is worthwhile.
+`flask_app/requirements.txt` is a full environment freeze rather than the app's actual dependency set - the simulator itself needs only Flask and its transitive dependencies. Installing the file pulls in Jupyter, pandas, scikit-learn, SQLAlchemy, and matplotlib, which is why the container image is far larger than a small Flask app warrants. Narrowing it to `Flask` before treating the image as a lightweight CI dependency is worthwhile.
