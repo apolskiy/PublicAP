@@ -28,3 +28,8 @@ screenshots/
 # OS
 .DS_Store
 Thumbs.db
+# Local archives of content already present as source
+*.zip
+
+# Stray scratch file
+/test
