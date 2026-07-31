@@ -216,6 +216,50 @@ def test_emulator_reports_uninterpretable_requests_as_999():
 
 ---
 
+## Testing the emulators
+
+[![Emulator Test Suite](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml/badge.svg)](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml)
+
+**93 end-to-end tests** covering both emulators.
+
+```bash
+pip install -r requirements-dev.txt
+pytest                                    # both suites
+pytest emulators/tests/test_flask_error_simulator.py
+pylint --fail-under=10 emulators/tests emulators/flask_app/app.py \
+       emulators/custom_header_response_to_http_request.py
+```
+
+### Isolation strategy
+
+The two emulators are tested in opposite ways, and the difference is not stylistic.
+
+The **Flask simulator** is a pure request/response service, so its 21-code matrix runs through the WSGI test client: no socket, no port, nothing that can flake. Two assertions run it on a real loopback socket, because a WSGI client proves the logic but not that the service speaks HTTP.
+
+The **caller-number emulator** deliberately blocks or kills its own process - `999` exits non-zero, `592` exits zero, `590` blocks the single-threaded server for two minutes. **Every test therefore gets its own subprocess on its own ephemeral port.** Sharing one would make each result depend on which destructive test ran first, which is a sequence rather than a suite.
+
+Determinism is enforced rather than assumed:
+
+- Readiness is established by **polling the socket**, never by sleeping. A fixed sleep is either slower than necessary or shorter than reality, and usually becomes both on a loaded runner.
+- The `590` stall is asserted through a short **client-side timeout**; waiting out the full 120 seconds would prove nothing extra and would make the suite unusable in CI.
+- `pytest-randomly` shuffles collection order every run, and CI does a second pass under a fixed seed. An order-dependent suite fails instead of passing by luck.
+- Emulator output goes to a **file, not a pipe** - an undrained pipe eventually fills and blocks the emulator mid-request, surfacing as an inexplicable timeout somewhere else.
+
+### What is covered
+
+| Suite | Tests | Focus |
+| --- | --- | --- |
+| `test_flask_error_simulator.py` | 59 | Every advertised code returned verbatim; bodies naming code and description; unsupported codes and unroutable paths resolving to 404; the catalogue linking every code; real-HTTP reachability |
+| `test_caller_number_emulator.py` | 34 | Payload-driven status selection across 12 codes and all 5 verbs; `X-Caller-Number` fallback and body precedence; UUID4 session uniqueness; all four `999` paths including the non-zero process exit; the `590` stall, `592` shutdown and `591` listener drop; JSON content-type contract |
+
+CI runs the suites on a matrix of **Ubuntu and Windows** against **Python 3.12 and 3.14**, with `fail-fast` disabled: socket binding and process-termination semantics differ per platform, and that is precisely what the caller-number emulator relies on. Static analysis runs first as a blocking gate, so a hygiene regression fails before any process is spawned.
+
+### Note on the port
+
+The caller-number emulator reads `EMULATOR_PORT`, defaulting to **8080**. The default is unchanged; the override exists so a test run - or a second instance - can bind an ephemeral port instead of colliding.
+
+---
+
 ## Choosing between them
 
 | Need | Use |
@@ -234,12 +278,22 @@ def test_emulator_reports_uninterpretable_requests_as_999():
 
 ```text
 PublicAP/
+├── .github/workflows/
+│   └── emulator-tests.yml        # Lint gate + both suites, OS/Python matrix
 ├── emulators/                    # Test infrastructure - the subject of this README
 │   ├── custom_header_response_to_http_request.py   # Caller-number emulator, port 8080
-│   └── flask_app/
-│       ├── app.py                # Error-code simulator, port 4000
-│       ├── Dockerfile.dev        # python:3.12
-│       └── requirements.txt      # Flask only
+│   ├── flask_app/
+│   │   ├── app.py                # Error-code simulator, port 4000
+│   │   ├── Dockerfile.dev        # python:3.12
+│   │   └── requirements.txt      # Flask only
+│   └── tests/
+│       ├── conftest.py           # Isolation fixtures
+│       ├── emulator_control.py   # Process control and readiness helpers
+│       ├── test_caller_number_emulator.py
+│       └── test_flask_error_simulator.py
+├── .pylintrc                     # Static analysis, gated at 10.00/10
+├── pytest.ini
+├── requirements-dev.txt          # Test dependencies
 └── practice/                     # Unrelated: see below
 ```
 
