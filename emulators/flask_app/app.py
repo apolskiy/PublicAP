@@ -108,15 +108,15 @@ def return_status_code(code):
 
 
 @app.errorhandler(Exception)
-def handle_exception(e):
+def handle_exception(error):
     """
     This function safely handles both manual abort() calls
     and unexpected Python errors.
     """
     # 1. If it's a Flask HTTP error (like from abort(404)), use its own data
-    if isinstance(e, HTTPException):
+    if isinstance(error, HTTPException):
         # Access .code and .name safely from the HTTPException object
-        return f"<h1>{e.code}: {e.name}</h1><p>{e.description}</p>", e.code
+        return f"<h1>{error.code}: {error.name}</h1><p>{error.description}</p>", error.code
 
     # 2. If it's a real code error (e.g., ZeroDivisionError), return a 500
     # This prevents the handler from crashing and hiding the real issue

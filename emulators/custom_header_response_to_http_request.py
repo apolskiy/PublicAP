@@ -78,8 +78,8 @@ class CustomRequestHandler(http.server.BaseHTTPRequestHandler):
             try:
                 self.send_response(999, "Internal Script Error")
                 self.end_headers()
-            except Exception as e:
-                logging.error("Error sending 999 response: %s", e)
+            except Exception as error:
+                logging.error("Error sending 999 response: %s", error)
                 sys.exit(1)
 
     def _handle_request_logic(self, method: str):
@@ -119,8 +119,8 @@ class CustomRequestHandler(http.server.BaseHTTPRequestHandler):
             self._process_status_code(status_code)
         except json.JSONDecodeError:
             self._send_custom_response(999, {"error": "Invalid JSON body"})
-        except Exception as e:
-            logging.error("Error in request handling logic: %s", e)
+        except Exception as error:
+            logging.error("Error in request handling logic: %s", error)
             self._process_status_code(999)  # General script errors generate 999
 
     def _process_status_code(self, code):
@@ -194,13 +194,13 @@ def run_server():
                 #server_instance = httpd
                 logging.info("Serving at port %s...", PORT)
                 httpd.serve_forever()
-        except Exception as e:
-            logging.error("Server error: %s", e)
-            if '591' in str(e):  # This part is tricky to catch the exact error
+        except Exception as error:
+            logging.error("Server error: %s", error)
+            if '591' in str(error):  # This part is tricky to catch the exact error
                 logging.info("Reopening port in 60 seconds...")
                 time.sleep(60)
                 continue  # Loop to restart the server
-            elif '592' in str(e):
+            elif '592' in str(error):
                 logging.info("Shutting down completely.")
                 break  # Exit the loop and stop the script
             else:
@@ -227,8 +227,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.info("Server stopped by user (Ctrl+C).")
         httpd.server_close()
-    except Exception as e:
-        logging.error("An unexpected error occurred: %s", e)
+    except Exception as error:
+        logging.error("An unexpected error occurred: %s", error)
         # In case of any script error during startup or serving, a 999 response should be generated
         # but the server might not be running to send it. This logs the error.
         sys.exit(1)
