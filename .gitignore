@@ -33,3 +33,7 @@ Thumbs.db
 
 # Stray scratch file
 /test
+
+# Test virtualenv and generated reports
+.venv-test/
+reports/

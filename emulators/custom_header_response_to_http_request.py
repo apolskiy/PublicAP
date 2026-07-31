@@ -5,6 +5,7 @@ Any problems with the script and 999 error code will be returned"""
 import http.server
 import socketserver
 import json
+import os
 import uuid
 import time
 import sys
@@ -27,7 +28,8 @@ import logging
 # -d "{"caller-number": "18884400592"}"
 
 #sample curl requests for cmd:
-#curl -X GET http://localhost:8080 -H "Content-Type: application/json" -d "{\"caller-number\": \"18884400403\"}"
+#curl -X GET http://localhost:8080 -H "Content-Type: application/json"
+#     -d "{\"caller-number\": \"18884400403\"}"
 
 #curl -X POST http://localhost:8080 -H "Content-Type: application/json"
 # -d "{\"caller-number\": \"18884400201\"}"
@@ -48,14 +50,27 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-PORT = 8080
-global server_instance
-global httpd
-server_instance = None  # Global variable to hold the server instance
+# Listening port. Overridable so a test run - or a second instance - can bind
+# an ephemeral port instead of colliding on 8080. Default is unchanged.
+PORT = int(os.environ.get("EMULATOR_PORT", "8080"))
+# Bound in __main__. Declared here so the 591 branch, which closes the listener
+# from inside a request handler, always resolves the name - previously it could
+# raise NameError instead of performing the documented restart.
+httpd: socketserver.TCPServer | None = None
 
 
 class CustomRequestHandler(http.server.BaseHTTPRequestHandler):
-    """Handles HTTP GET, POST, PUT, DELETE, PATCH requests with custom logic."""
+    """Handles HTTP GET, POST, PUT, DELETE, PATCH requests with custom logic.
+
+    The ``do_<VERB>`` method names are dictated by
+    :class:`http.server.BaseHTTPRequestHandler`, which dispatches on them, so
+    the snake_case rule does not apply. The broad ``except Exception`` clauses
+    are equally deliberate: this emulator must degrade to a 999 sentinel rather
+    than crash, because a crashed emulator gives a consuming suite no signal at
+    all.
+    """
+
+    # pylint: disable=invalid-name, broad-exception-caught
 
     def _send_custom_response(self, status_code: int, response_data=None):
         """Sends an HTTP response with a custom status code and optional JSON body."""
@@ -194,17 +209,17 @@ def run_server():
                 #server_instance = httpd
                 logging.info("Serving at port %s...", PORT)
                 httpd.serve_forever()
-        except Exception as error:
+        # Broad by design: the loop inspects the error text to decide whether
+        # this was a 591 restart, a 592 shutdown, or a genuine fault.
+        except Exception as error:  # pylint: disable=broad-exception-caught
             logging.error("Server error: %s", error)
             if '591' in str(error):  # This part is tricky to catch the exact error
                 logging.info("Reopening port in 60 seconds...")
                 time.sleep(60)
                 continue  # Loop to restart the server
-            elif '592' in str(error):
+            if '592' in str(error):
                 logging.info("Shutting down completely.")
-                break  # Exit the loop and stop the script
-            else:
-                break  # Exit on other errors
+            break  # 592 or any other error: stop the loop
 
 
 if __name__ == "__main__":
@@ -227,7 +242,9 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.info("Server stopped by user (Ctrl+C).")
         httpd.server_close()
-    except Exception as error:
+    # Deliberately broad: a startup or serving fault must be logged and turned
+    # into a non-zero exit, never a bare traceback that a supervisor cannot read.
+    except Exception as error:  # pylint: disable=broad-exception-caught
         logging.error("An unexpected error occurred: %s", error)
         # In case of any script error during startup or serving, a 999 response should be generated
         # but the server might not be running to send it. This logs the error.

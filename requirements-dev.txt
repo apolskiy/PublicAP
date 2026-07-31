@@ -1,0 +1,25 @@
+# Test dependencies for the emulator suites.
+#
+# The emulators themselves need only Flask (see emulators/flask_app);
+# everything below exists to exercise them.
+
+# Test runner
+pytest==9.1.1
+
+# HTTP client used to drive both emulators over a real socket
+requests==2.32.5
+
+# The Flask simulator under test, plus the WSGI server used to serve it
+# over loopback for the handful of real-HTTP assertions.
+Flask==3.1.2
+
+# Reporting
+pytest-html==4.2.0
+pytest-metadata==3.1.1
+
+# Randomises test order every run, so an order dependency surfaces as a
+# failure instead of hiding until the day collection order changes.
+pytest-randomly==4.1.0
+
+# Static analysis, gated at 10.00/10 in CI
+pylint==4.0.6

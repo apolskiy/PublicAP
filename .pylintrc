@@ -1,0 +1,38 @@
+[MAIN]
+# The suites import the Flask app and their own control module by path, the way
+# pytest resolves them at runtime. Teaching the linter the same paths lets the
+# imports be verified rather than suppressed. Assumes invocation from the
+# repository root, which is how CI runs it.
+init-hook = 'import os, sys; sys.path[:0] = [os.path.abspath("emulators/flask_app"), os.path.abspath("emulators/tests")]'
+
+# Only the emulator sources and their suites are governed. The practice/ tree is
+# unrelated exercise code and is not held to this standard.
+ignore-paths = ^(practice|test_scripts|playwright|selenium|scikit-learn|report)/.*$
+
+[MESSAGES CONTROL]
+disable =
+    # The pytest fixture idiom: a test parameter intentionally shadows the
+    # fixture function's name.
+    redefined-outer-name,
+    # Test suites repeat arrange/assert shapes by design; collapsing them would
+    # cost more in readability than the duplication costs.
+    duplicate-code
+
+[FORMAT]
+max-line-length = 100
+
+[BASIC]
+# One- and two-character names are rejected outright rather than allowed through
+# the usual i/x/df escape hatches: a reader should never have to infer meaning
+# from a single letter.
+good-names =
+argument-naming-style = snake_case
+variable-naming-style = snake_case
+docstring-min-length = 1
+
+[DESIGN]
+max-args = 8
+min-public-methods = 0
+
+[REPORTS]
+score = yes
