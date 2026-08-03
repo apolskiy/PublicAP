@@ -37,3 +37,4 @@ Thumbs.db
 # Test virtualenv and generated reports
 .venv-test/
 reports/
+/emulators/state-29840.log
