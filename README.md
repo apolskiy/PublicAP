@@ -130,7 +130,11 @@ docker run -d --name errsim -p 4000:4000 apolskiy/flask_app
 docker stop errsim && docker rm errsim
 ```
 
-The image builds on `python:3.12`, exposes **4000**, and starts `flask run --host=0.0.0.0` so it is reachable from outside the container.
+The image builds on `python:3.14.4-slim`, exposes **4000**, and starts `flask run --host=0.0.0.0` so it is reachable from outside the container.
+
+The published image carries Flask and its six transitive dependencies and nothing else. Nothing from `requirements-dev.txt` reaches it: the `requirements.txt` beside the Dockerfile pins Flask alone, and the dev dependencies stay at the repository root where the build never looks. A `.dockerignore` sits at the build-context root - `emulators/flask_app/`, the directory passed to `docker build`, not the repository root - so a local `venv/`, `__pycache__/` or stray `*.log` is never copied into a public artifact. Docker only reads `.dockerignore` from the context root, which is the whole reason its placement matters. Together with the slim base these took the published download from 397 MB to 46 MB.
+
+> **Provenance.** The emulators and their test suites are original work; no emulator source file has been modified with AI assistance. Such assistance in this repository is limited to container build configuration - the `.dockerignore` rules, a corrected comment in `Dockerfile.dev` - and the wording of this Docker section. Commit `5b84be9a` carries a `Co-Authored-By` trailer for that reason; its diff is five lines.
 
 As a GitHub Actions service container:
 
