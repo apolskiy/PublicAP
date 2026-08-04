@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # beside this file is what keeps a local venv, caches and stray logs out of the image.
 COPY . .
 
-# Matching  existing application routing port
+# Matching  existing application routing port and exposing it for testing
 EXPOSE 4000
 
 # Thin production execution syntax
