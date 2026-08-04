@@ -5,7 +5,8 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files (practice/ folder is automatically blocked by .dockerignore)
+# Copy application files. The build context is this directory, so .dockerignore
+# beside this file is what keeps a local venv, caches and stray logs out of the image.
 COPY . .
 
 # Matching  existing application routing port

@@ -7,5 +7,3 @@ __pycache__
 .env
 venv/
 .pytest_cache
-practice/
-report/
