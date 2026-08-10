@@ -14,9 +14,17 @@ Published image: [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_
 
 > The `practice/` tree is unrelated: standalone algorithm and exercise scripts kept for reference. Nothing in `emulators/` depends on it. See [Practice scripts](#practice-scripts) at the end.
 
+> **Documentation status:** describes **v1.0.0**, reviewed 2026-08-10.
+> Each section below carries the release and date its content last changed, so a
+> reader arriving at a later version can see at a glance which parts moved. This
+> file always describes the *current* release; release-to-release history lives
+> in [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## 1. Caller-Number Emulator
+
+<sub>v1.0.0 &middot; 2026-08-10</sub>
 
 A single file, no third-party dependencies, one socket.
 
@@ -79,6 +87,8 @@ The server is **single-threaded**, which is exactly what makes `590` a genuine s
 ---
 
 ## 2. Flask Error Code Simulator
+
+<sub>v1.0.0 &middot; 2026-08-10</sub>
 
 Returns any of **21 supported status codes**, with a browsable index page listing each one as a clickable link.
 
@@ -156,6 +166,8 @@ jobs:
 
 ## Example consumer tests
 
+<sub>v1.0.0 &middot; 2026-08-10</sub>
+
 Illustrations of how a suite consumes these emulators. They are examples for a *consuming* project, not tests of this repository.
 
 **Every 5xx your client claims to handle, actually handled:**
@@ -222,6 +234,8 @@ def test_emulator_reports_uninterpretable_requests_as_999():
 
 ## Testing the emulators
 
+<sub>v1.0.0 &middot; 2026-08-10</sub>
+
 [![Emulator Test Suite](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml/badge.svg)](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml)
 
 **93 end-to-end tests** covering both emulators.
@@ -266,6 +280,8 @@ The caller-number emulator reads `EMULATOR_PORT`, defaulting to **8080**. The de
 
 ## Choosing between them
 
+<sub>v1.0.0 &middot; 2026-08-10</sub>
+
 | Need | Use |
 | --- | --- |
 | A specific 4xx/5xx status, repeatedly | Flask simulator |
@@ -280,6 +296,8 @@ The caller-number emulator reads `EMULATOR_PORT`, defaulting to **8080**. The de
 
 ## Repository layout
 
+<sub>v1.0.0 &middot; 2026-08-10</sub>
+
 ```text
 PublicAP/
 ├── .github/workflows/
@@ -288,7 +306,8 @@ PublicAP/
 │   ├── custom_header_response_to_http_request.py   # Caller-number emulator, port 8080
 │   ├── flask_app/
 │   │   ├── app.py                # Error-code simulator, port 4000
-│   │   ├── Dockerfile.dev        # python:3.12
+│   │   ├── Dockerfile.dev        # python:3.14.4-slim
+│   │   ├── .dockerignore         # At the build-context root, where Docker reads it
 │   │   └── requirements.txt      # Flask only
 │   └── tests/
 │       ├── conftest.py           # Isolation fixtures
@@ -304,6 +323,8 @@ PublicAP/
 ---
 
 ## Practice scripts
+
+<sub>v1.0.0 &middot; 2026-08-10</sub>
 
 `practice/` holds standalone algorithm and exercise scripts, kept for reference and unrelated to the emulators above. `practice/with_unit_test_pytest/` contains scripts with pytest unit tests, and its `report/` subdirectory holds Jenkins-compatible XML run reports. Also present at the repository root: `test_scripts/`, `playwright/`, `selenium/`, `scikit-learn/`, and `report/`.
 
