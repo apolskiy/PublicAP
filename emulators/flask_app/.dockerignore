@@ -7,3 +7,11 @@ __pycache__
 .env
 venv/
 .pytest_cache
+
+# Build inputs, not application files. `COPY . .` copies the whole context, so
+# without these two the image ships its own Dockerfile and ignore list at /app -
+# cruft in an artifact whose published claim is that it carries Flask and
+# nothing else. Docker still reads the Dockerfile itself: it is passed with -f
+# and never sourced from the copied tree.
+Dockerfile*
+.dockerignore

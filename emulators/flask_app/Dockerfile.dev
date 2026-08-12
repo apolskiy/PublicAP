@@ -1,7 +1,14 @@
 FROM python:3.14.4-slim
 WORKDIR /app
 
-# Copy and install packages without saving bulky local cache files
+# Unbuffered stdout/stderr. Python buffers when it detects a pipe rather than a
+# terminal, which is exactly the case under `docker logs`, and the result is an
+# emulator whose output arrives in bursts long after the request that caused it.
+# Diagnosing a consumer's timeout against logs that lag is needlessly hard.
+ENV PYTHONUNBUFFERED=1
+
+# Requirements first, before the source. Docker caches layers in order, so a
+# change to app.py must not invalidate the pip install above it.
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -9,8 +16,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 # beside this file is what keeps a local venv, caches and stray logs out of the image.
 COPY . .
 
-# Matching  existing application routing port and exposing it for testing
+# Drop root. Nothing here writes to disk, binds a privileged port, or needs
+# ownership of anything, so there is no reason for the process to hold
+# capabilities it will never use. Placed after pip install, which does need to
+# write into site-packages.
+RUN useradd --create-home --uid 10001 emulator
+USER emulator
+
+# Matching existing application routing port and exposing it for testing
 EXPOSE 4000
 
-# Thin production execution syntax
+# Liveness, using the standard library rather than curl - which this slim base
+# does not carry, and which would have to be installed into an image whose whole
+# claim is that it holds Flask and nothing else. The catalogue route is the
+# honest probe: it exercises template rendering rather than merely proving a
+# socket is open.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/').read()" || exit 1
+
+# Werkzeug's development server, deliberately. This image is test infrastructure,
+# not a production service: it is expected to be reachable on loopback or a CI
+# network, serve a handful of requests per run, and behave identically every
+# time. A production WSGI server would add a dependency to an image whose
+# published contract is Flask and its six transitive dependencies and nothing
+# else, and would buy throughput and worker management that no consumer of a
+# fault-injection emulator has ever needed.
 CMD ["flask", "run", "--host=0.0.0.0", "--port=4000"]
