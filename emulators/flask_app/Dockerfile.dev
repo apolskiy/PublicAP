@@ -7,6 +7,12 @@ WORKDIR /app
 # Diagnosing a consumer's timeout against logs that lag is needlessly hard.
 ENV PYTHONUNBUFFERED=1
 
+# The application directory is owned by root and the process runs as a normal
+# user, so writing bytecode there would fail. Python ignores that failure
+# silently, which is worse than not attempting it: telling the interpreter not
+# to write is honest about the arrangement and saves a failed syscall per import.
+ENV PYTHONDONTWRITEBYTECODE=1
+
 # Requirements first, before the source. Docker caches layers in order, so a
 # change to app.py must not invalidate the pip install above it.
 COPY requirements.txt ./

@@ -10,11 +10,11 @@ Real upstream services fail on their own schedule. A suite that needs to prove i
 | [`emulators/custom_header_response_to_http_request.py`](emulators/custom_header_response_to_http_request.py) | Python stdlib `http.server`, port 8080 | Request **payload** (`caller-number`) or `X-Caller-Number` header | Hung connections, service restarts, any verb, session creation |
 | [`emulators/flask_app/`](emulators/flask_app) | Flask, port 4000, containerized | Request **URL** (`/error/<code>`), latency by `X-Response-Delay-Ms` header | Deterministic 4xx/5xx status handling, client timeout and retry paths, browsable catalogue |
 
-Published image: [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_app) on Docker Hub, tagged by [emulator release](#image-tags) - pin `1.1.0` in CI.
+Published image: [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_app) on Docker Hub, tagged by [emulator release](#image-tags) - pin `1.1.2` in CI.
 
 > The `practice/` tree is unrelated: standalone algorithm and exercise scripts kept for reference. Nothing in `emulators/` depends on it. See [Practice scripts](#practice-scripts) at the end.
 
-> **Documentation status:** describes **v1.1.1**, reviewed 2026-08-12.
+> **Documentation status:** describes **v1.1.2**, reviewed 2026-08-12.
 > Each section below carries the release and date its content last changed, so a
 > reader arriving at a later version can see at a glance which parts moved. This
 > file always describes the *current* release; release-to-release history lives
@@ -88,7 +88,7 @@ The server is **single-threaded**, which is exactly what makes `590` a genuine s
 
 ## 2. Flask Error Code Simulator
 
-<sub>v1.1.1 &middot; 2026-08-12</sub>
+<sub>v1.1.2 &middot; 2026-08-12</sub>
 
 Returns any of **21 supported status codes**, with a browsable index page listing each one as a clickable link, and will answer late by a caller-specified number of milliseconds.
 
@@ -159,8 +159,8 @@ That is what keeps the simulator honest: a bug in the simulator surfaces as a di
 
 ```bash
 # Published image - pin a release in CI, track latest for a quick look
-docker pull apolskiy/flask_app:1.1.0
-docker run --rm -p 4000:4000 apolskiy/flask_app:1.1.0
+docker pull apolskiy/flask_app:1.1.2
+docker run --rm -p 4000:4000 apolskiy/flask_app:1.1.2
 curl -i http://localhost:4000/error/500
 
 # Build locally
@@ -168,7 +168,7 @@ docker build -f emulators/flask_app/Dockerfile.dev -t flask_app:local emulators/
 docker run --rm -p 4000:4000 flask_app:local
 
 # Detached, for a CI job that needs it up for the duration
-docker run -d --name errsim -p 4000:4000 apolskiy/flask_app:1.1.0
+docker run -d --name errsim -p 4000:4000 apolskiy/flask_app:1.1.2
 docker stop errsim && docker rm errsim
 ```
 
@@ -178,7 +178,8 @@ Tags track the **emulator release** in this repository's [CHANGELOG.md](CHANGELO
 
 | Tag | Points at | Use it when |
 | --- | --- | --- |
-| `1.1.0` | That release, immutably | **A suite that must not change underneath it.** This is the tag to put in CI. |
+| `1.1.2` | That release, immutably | **A suite that must not change underneath it.** This is the tag to put in CI. |
+| `1.1.0` | The first latency-injection release | Reproducing a run from before the image dropped root |
 | `1.0.0` | The pre-latency release | Reproducing a run from before `X-Response-Delay-Ms` existed |
 | `latest` | The newest release | A quick look, a demo, anything where a surprise is cheap |
 
@@ -186,7 +187,11 @@ Tags track the **emulator release** in this repository's [CHANGELOG.md](CHANGELO
 
 The scheme changed at v1.1.1. There was previously a `3.14.4` tag naming the **Python base version**, which read like a release of this emulator and was not one - and once emulator releases started carrying numbers, it read like emulator 3.14.4. Its image is preserved as `1.0.0`, which is what that artifact always was; the digest is unchanged, so anything already pulled still matches.
 
-The image builds on `python:3.14.4-slim`, exposes **4000**, and starts `flask run --host=0.0.0.0` so it is reachable from outside the container. The base version is recorded here and in `Dockerfile.dev` rather than in a tag, because a reader choosing an image needs to know which emulator they are getting, and can look up what it was built on if they care.
+The image builds on `python:3.14.4-slim`, exposes **4000**, and starts `flask run --host=0.0.0.0` so it is reachable from outside the container.
+
+**Runtime posture.** The container runs as an unprivileged user (`emulator`, uid 10001) rather than root: nothing here writes to disk, binds a privileged port, or needs ownership of anything, so the process holds no capability it will ever use. A `HEALTHCHECK` probes the catalogue route through the standard library rather than `curl`, which this slim base does not carry and which would have to be installed into an image whose whole claim is Flask and nothing else. Output is unbuffered, so `docker logs` shows a request when it happens rather than in bursts afterwards - the difference matters when the thing being diagnosed is a consumer's timeout.
+
+**`flask run` is Werkzeug's development server, and that is deliberate.** This image is test infrastructure: reachable on loopback or a CI network, serving a handful of requests per run, expected to behave identically every time. A production WSGI server would add a dependency to a published closure of Flask and six packages, and would buy throughput and worker management that no consumer of a fault-injection emulator has needed. The file is named `Dockerfile.dev` for the same reason. The base version is recorded here and in `Dockerfile.dev` rather than in a tag, because a reader choosing an image needs to know which emulator they are getting, and can look up what it was built on if they care.
 
 The published image carries Flask and its six transitive dependencies and nothing else. **Latency injection added no dependency to that closure** - it is `time.sleep` from the standard library - so the image's dependency contract is unchanged, and the scheduled consumer test that reads the published image still asserts the same set. A capability that quietly widened a public artifact's dependency surface would be a poor trade for a header. Nothing from `requirements-dev.txt` reaches it either: the `requirements.txt` beside the Dockerfile pins Flask alone, and the dev dependencies stay at the repository root where the build never looks. A `.dockerignore` sits at the build-context root - `emulators/flask_app/`, the directory passed to `docker build`, not the repository root - so a local `venv/`, `__pycache__/` or stray `*.log` is never copied into a public artifact. Docker only reads `.dockerignore` from the context root, which is the whole reason its placement matters. Together with the slim base these took the published download from 397 MB to 46 MB.
 
@@ -202,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       error-simulator:
-        image: apolskiy/flask_app:1.1.0   # pinned: a shared fixture must not move under a run
+        image: apolskiy/flask_app:1.1.2   # pinned: a shared fixture must not move under a run
         ports:
           - 4000:4000
     steps:

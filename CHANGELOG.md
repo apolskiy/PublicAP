@@ -27,6 +27,65 @@ in the evening in one timezone still agrees with the commit that carries it.
 
 ---
 
+## v1.1.2 - 2026-08-12
+
+Container hygiene. **Patch**: the emulator's HTTP contract is untouched - same
+status codes, same control codes, same delay header, same responses. What
+changed is how the image runs and what it carries.
+
+### Changed
+
+- **The container no longer runs as root.** A dedicated `emulator` user (uid
+  10001) owns the process. Nothing in this service writes to disk, binds a
+  privileged port, or needs ownership of anything, so root bought nothing and
+  cost the default review question about every published image.
+- **`Dockerfile*` and `.dockerignore` are excluded from the build context copy.**
+  `COPY . .` copies the whole context, so the published image had been shipping
+  its own Dockerfile and ignore list at `/app` - build inputs inside an artifact
+  whose stated claim is that it carries Flask and nothing else. Docker still
+  reads the Dockerfile: it is passed with `-f` and was never sourced from the
+  copied tree.
+- **Output is unbuffered** (`PYTHONUNBUFFERED=1`). Python buffers when it detects
+  a pipe rather than a terminal, which is precisely the case under `docker logs`,
+  so an emulator's output arrived in bursts after the requests that caused it.
+  Log lag is a poor property in a service whose purpose is diagnosing timing.
+- **Bytecode writing is disabled** (`PYTHONDONTWRITEBYTECODE=1`). With the
+  application directory owned by root and the process running as a normal user,
+  the interpreter's attempt to write `__pycache__` would fail and be ignored
+  silently. Declining to attempt it is more honest than failing quietly.
+
+### Added
+
+- **A `HEALTHCHECK`**, probing the catalogue route with `urllib` from the
+  standard library rather than `curl`, which this slim base does not carry and
+  which would mean installing a package into the closure to check on it. The
+  catalogue is the honest probe: it exercises template rendering rather than
+  merely proving a socket accepts.
+
+### Fixed
+
+- **The `CMD` comment claimed "thin production execution syntax".** It is
+  Werkzeug's development server, which is the correct choice here and was being
+  described as the opposite of what it is. The comment now states the choice and
+  the reason: a production WSGI server would add a dependency to a published
+  closure of Flask and six packages, to buy throughput and worker management no
+  consumer of a fault-injection emulator has needed.
+- A doubled space in the `EXPOSE` comment.
+
+### Notes
+
+- **This is a new image, therefore a new tag.** `1.1.2` is the tag to pin;
+  `1.1.0` keeps pointing at the image that was published under it. Rebuilding and
+  re-pushing `1.1.0` would have been the easy path and would have broken the
+  guarantee this scheme committed to one release earlier - an immutable release
+  tag that quietly changes is worse than no scheme at all.
+- **The dependency closure is unchanged.** `useradd` comes from the base image,
+  the healthcheck uses the standard library, and no package was installed, so the
+  published image still carries Flask and its six transitive dependencies and
+  the consumer test that reads the layers still asserts the same set.
+
+---
+
 ## v1.1.1 - 2026-08-12
 
 Container tags now name the emulator release. **Patch** under this file's scope,
