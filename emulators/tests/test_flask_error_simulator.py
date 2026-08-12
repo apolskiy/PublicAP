@@ -15,6 +15,7 @@ socket rather than only through WSGI.
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 from typing import Final
 
@@ -25,7 +26,14 @@ from flask.testing import FlaskClient
 EMULATORS_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(EMULATORS_ROOT / "flask_app"))
 
-from app import SUPPORTED_ERROR_CODES  # noqa: E402  pylint: disable=wrong-import-position
+# noqa: E402  pylint: disable=wrong-import-position
+from app import (
+    DELAY_APPLIED_HEADER,
+    DELAY_REQUEST_HEADER,
+    MAX_DELAY_MS,
+    SUPPORTED_ERROR_CODES,
+    UNINTERPRETABLE_REQUEST,
+)
 
 #: Every code the simulator advertises, read from the application itself so the
 #: suite cannot drift from the implementation it describes.
@@ -40,6 +48,44 @@ UNROUTABLE_PATHS: Final[tuple[str, ...]] = ("/error/abc", "/error/", "/error/4o4
 
 #: Timeout for the few assertions that cross a real socket.
 HTTP_TIMEOUT_SECONDS: Final[int] = 10
+
+#: Delay used by the latency assertions. Long enough to outrun timer noise on a
+#: loaded runner, short enough that the whole class stays well under a second.
+DELAY_UNDER_TEST_MS: Final[int] = 250
+
+#: Slack allowed when measuring an applied delay. Windows' default timer
+#: granularity is roughly 15.6ms, so a sleep can be observed a fraction short of
+#: its nominal duration; asserting an exact floor would fail on that alone.
+TIMER_TOLERANCE_MS: Final[int] = 25
+
+#: Ceiling on how long an *undelayed* response may take before the assertion
+#: that no delay was applied stops being meaningful. Deliberately generous: it
+#: exists to catch a delay that fired when none was asked for, not to police
+#: the service's own speed on a busy machine.
+NO_DELAY_CEILING_MS: Final[int] = 1_000
+
+#: Delay header values the service must refuse rather than interpret. Each is a
+#: plausible caller mistake: a unit suffix, a float, a negative, an empty
+#: header, and a value past the ceiling.
+UNINTERPRETABLE_DELAYS: Final[tuple[str, ...]] = (
+    "250ms",
+    "1.5",
+    "-5",
+    "",
+    str(MAX_DELAY_MS + 1),
+)
+
+
+def _elapsed_ms(started_at: float) -> float:
+    """Return milliseconds elapsed since a :func:`time.perf_counter` reading.
+
+    Args:
+        started_at (float): The reading taken before the call under test.
+
+    Returns:
+        float: Elapsed wall-clock time in milliseconds.
+    """
+    return (time.perf_counter() - started_at) * 1000
 
 
 class TestSupportedCodes:
@@ -273,6 +319,275 @@ class TestErrorHandling:
         assert "404" in response.get_data(as_text=True)
 
 
+class TestLatencyInjection:
+    """The simulator answers late by an exact, caller-specified amount.
+
+    A client's timeout, retry and backoff paths are usually its least-tested
+    code, because a real upstream cannot be asked to be slow to order. These
+    assertions cover the contract a consuming suite depends on: the delay is
+    applied, it is reported, it composes with the requested status, and a delay
+    that cannot be honoured is refused rather than approximated.
+    """
+
+    def test_no_delay_header_answers_immediately(
+        self, flask_client: FlaskClient
+    ) -> None:
+        """Without the header the service must not pause at all.
+
+        The delay is opt-in. Every existing consumer sends no such header, and
+        must keep seeing the response times it always has.
+
+        Preconditions:
+            - No delay header is sent.
+
+        Assertions:
+            - The response reports zero applied delay.
+            - The round trip stays under the no-delay ceiling.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+
+        Returns:
+            None
+        """
+        started_at = time.perf_counter()
+        response = flask_client.get("/error/503")
+        elapsed_ms = _elapsed_ms(started_at)
+
+        assert response.headers[DELAY_APPLIED_HEADER] == "0"
+        assert elapsed_ms < NO_DELAY_CEILING_MS, (
+            f"An undelayed request took {elapsed_ms:.0f}ms. Either a delay was "
+            "applied without being asked for, or this machine is too loaded for "
+            "the measurement to mean anything."
+        )
+
+    def test_requested_delay_is_applied_and_reported(
+        self, flask_client: FlaskClient
+    ) -> None:
+        """The service must sleep the requested time and say that it did.
+
+        The reported figure is what makes the delay assertable without a
+        stopwatch, which would otherwise be measuring the test runner's own
+        scheduling as much as the service's behaviour.
+
+        Preconditions:
+            - The delay header carries a value within the ceiling.
+
+        Assertions:
+            - The applied-delay header echoes the requested value.
+            - The measured round trip is at least the requested delay, less the
+              platform's timer granularity.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+
+        Returns:
+            None
+        """
+        started_at = time.perf_counter()
+        response = flask_client.get(
+            "/error/503", headers={DELAY_REQUEST_HEADER: str(DELAY_UNDER_TEST_MS)}
+        )
+        elapsed_ms = _elapsed_ms(started_at)
+
+        assert response.headers[DELAY_APPLIED_HEADER] == str(DELAY_UNDER_TEST_MS)
+        assert elapsed_ms >= DELAY_UNDER_TEST_MS - TIMER_TOLERANCE_MS, (
+            f"Asked for {DELAY_UNDER_TEST_MS}ms but the response came back in "
+            f"{elapsed_ms:.0f}ms. A delay that is reported but not taken would let "
+            "a client's timeout test pass without ever reaching its timeout."
+        )
+
+    def test_delay_composes_with_the_requested_status(
+        self, flask_client: FlaskClient
+    ) -> None:
+        """A delayed response must still carry the status that was asked for.
+
+        The two controls are orthogonal by design: the interesting cases for a
+        retry policy are a slow 503 and a slow 429, not a slow 200.
+
+        Preconditions:
+            - 503 is in the supported set.
+
+        Assertions:
+            - The status is 503, not a delay-related code.
+            - The body still names the mapped description.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+
+        Returns:
+            None
+        """
+        response = flask_client.get(
+            "/error/503", headers={DELAY_REQUEST_HEADER: str(DELAY_UNDER_TEST_MS)}
+        )
+
+        assert response.status_code == 503
+        assert "Service Unavailable" in response.get_data(as_text=True)
+
+    @pytest.mark.parametrize("path", ("/", "/error/404", "/error/600"))
+    def test_delay_applies_to_every_route(
+        self, flask_client: FlaskClient, path: str
+    ) -> None:
+        """The delay must not be confined to the error route.
+
+        A consumer proving it survives a slow catalogue, a slow 404 or a slow
+        non-standard status needs the same control as one proving it survives a
+        slow 503.
+
+        Preconditions:
+            - ``path`` is a route the service serves.
+
+        Assertions:
+            - The applied-delay header echoes the requested value.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+            path (str): A route the service answers.
+
+        Returns:
+            None
+        """
+        response = flask_client.get(
+            path, headers={DELAY_REQUEST_HEADER: str(DELAY_UNDER_TEST_MS)}
+        )
+        assert response.headers[DELAY_APPLIED_HEADER] == str(DELAY_UNDER_TEST_MS)
+
+    @pytest.mark.parametrize("delay_value", UNINTERPRETABLE_DELAYS)
+    def test_uninterpretable_delay_yields_the_sentinel(
+        self, flask_client: FlaskClient, delay_value: str
+    ) -> None:
+        """A delay that cannot be honoured must be refused with 999.
+
+        999 sits outside the HTTP range on purpose, so a caller can never
+        confuse "this service rejected your header" with a status it was asked
+        to produce. It is the same sentinel the caller-number emulator uses for
+        the same meaning.
+
+        Preconditions:
+            - ``delay_value`` is not a whole, non-negative, in-range number.
+
+        Assertions:
+            - The status is the sentinel, not the requested 503.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+            delay_value (str): A delay header value the service must refuse.
+
+        Returns:
+            None
+        """
+        response = flask_client.get(
+            "/error/503", headers={DELAY_REQUEST_HEADER: delay_value}
+        )
+        assert response.status_code == UNINTERPRETABLE_REQUEST, (
+            f"Delay {delay_value!r} produced {response.status_code}. Serving the "
+            "requested status anyway would let a timeout test pass on a delay that "
+            "never happened."
+        )
+
+    def test_refusal_is_not_a_server_error(self, flask_client: FlaskClient) -> None:
+        """A rejected header must not be reported as a fault in the simulator.
+
+        ``abort`` cannot raise a 999 - Werkzeug has no exception registered for
+        it - so an implementation that reached for ``abort`` would fall through
+        to the catch-all handler and answer 500. That would say "the simulator
+        broke" when the truth is "your header was wrong", and it is the exact
+        confusion this service exists to prevent.
+
+        Preconditions:
+            - The delay header carries an uninterpretable value.
+
+        Assertions:
+            - The status is the sentinel and specifically not 500.
+            - The body explains which header was at fault.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+
+        Returns:
+            None
+        """
+        response = flask_client.get("/error/503", headers={DELAY_REQUEST_HEADER: "abc"})
+
+        assert response.status_code != 500
+        assert response.status_code == UNINTERPRETABLE_REQUEST
+        assert DELAY_REQUEST_HEADER in response.get_data(as_text=True)
+
+    def test_delay_above_the_ceiling_is_refused_rather_than_clamped(
+        self, flask_client: FlaskClient
+    ) -> None:
+        """An over-long delay must be refused, and must not be silently shortened.
+
+        Clamping is the tempting choice and the wrong one. A caller who asked
+        for 60s, received 30s, and saw their 45s timeout not fire would conclude
+        their client tolerates a 60s upstream. Refusing tells them immediately.
+
+        Preconditions:
+            - The requested delay exceeds ``MAX_DELAY_MS``.
+
+        Assertions:
+            - The status is the sentinel.
+            - The body names the ceiling, so the limit is discoverable by
+              probing rather than only by reading the source.
+            - The refusal is not itself delayed.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+
+        Returns:
+            None
+        """
+        started_at = time.perf_counter()
+        response = flask_client.get(
+            "/error/503", headers={DELAY_REQUEST_HEADER: str(MAX_DELAY_MS + 1)}
+        )
+        elapsed_ms = _elapsed_ms(started_at)
+
+        assert response.status_code == UNINTERPRETABLE_REQUEST
+        assert str(MAX_DELAY_MS) in response.get_data(as_text=True)
+        assert elapsed_ms < NO_DELAY_CEILING_MS, (
+            f"A refused delay still took {elapsed_ms:.0f}ms. A rejection must be "
+            "immediate; sleeping first would punish the caller for the mistake the "
+            "service just declined to act on."
+        )
+
+    def test_catalogue_documents_the_delay_contract(
+        self, flask_client: FlaskClient
+    ) -> None:
+        """The index must publish the delay header, its ceiling and its sentinel.
+
+        The catalogue is this service's own documentation. A capability that is
+        present but undiscoverable may as well not exist, which is the same
+        standard already applied to the status codes it lists.
+
+        Preconditions:
+            - The service is serving its index route.
+
+        Assertions:
+            - The page names the request header, the response header, the
+              ceiling, and the sentinel status.
+
+        Args:
+            flask_client (FlaskClient): WSGI client bound to the simulator.
+
+        Returns:
+            None
+        """
+        body = flask_client.get("/").get_data(as_text=True)
+
+        for advertised in (
+            DELAY_REQUEST_HEADER,
+            DELAY_APPLIED_HEADER,
+            str(MAX_DELAY_MS),
+            str(UNINTERPRETABLE_REQUEST),
+        ):
+            assert advertised in body, (
+                f"The catalogue does not mention {advertised!r}. A capability that "
+                "is undiscoverable may as well not exist."
+            )
+
+
 class TestOverRealHttp:
     """The simulator is reachable over HTTP, not only through WSGI."""
 
@@ -300,6 +615,42 @@ class TestOverRealHttp:
         )
         assert response.status_code == 503
         assert "Service Unavailable" in response.text
+
+    def test_delay_is_applied_over_a_real_socket(self, flask_server: str) -> None:
+        """The delay must reach a real client, not only the WSGI layer.
+
+        This is the assertion that matters to a consumer: their HTTP client,
+        their timeout, their socket. A delay implemented only in the WSGI path
+        would satisfy every other case in this class and help nobody.
+
+        Preconditions:
+            - The simulator is bound to a loopback port.
+
+        Assertions:
+            - The requested status still arrives.
+            - The applied-delay header echoes the request.
+            - The measured round trip is at least the requested delay.
+
+        Args:
+            flask_server (str): Base URL of the simulator on loopback.
+
+        Returns:
+            None
+        """
+        started_at = time.perf_counter()
+        response = requests.get(
+            f"{flask_server}/error/503",
+            headers={DELAY_REQUEST_HEADER: str(DELAY_UNDER_TEST_MS)},
+            timeout=HTTP_TIMEOUT_SECONDS,
+        )
+        elapsed_ms = _elapsed_ms(started_at)
+
+        assert response.status_code == 503
+        assert response.headers[DELAY_APPLIED_HEADER] == str(DELAY_UNDER_TEST_MS)
+        assert elapsed_ms >= DELAY_UNDER_TEST_MS - TIMER_TOLERANCE_MS, (
+            f"Over a real socket the response returned in {elapsed_ms:.0f}ms "
+            f"despite a {DELAY_UNDER_TEST_MS}ms delay being requested."
+        )
 
     def test_catalogue_is_served_over_a_real_socket(self, flask_server: str) -> None:
         """The index must render for a browser, not only a test client.

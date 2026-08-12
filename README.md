@@ -3,18 +3,18 @@
 
 **Test infrastructure: two HTTP service emulators that make failure conditions reproducible on demand.**
 
-Real upstream services fail on their own schedule. A suite that needs to prove it handles a 503, a rate limit, or a hung connection cannot wait for one to happen, and cannot rely on a mock that only proves the mock works. These emulators speak real HTTP over a real socket, and return exactly the failure asked of them, every time.
+Real upstream services fail on their own schedule. A suite that needs to prove it handles a 503, a rate limit, a hung connection, or a response that arrives two seconds late cannot wait for one to happen, and cannot rely on a mock that only proves the mock works. These emulators speak real HTTP over a real socket, and return exactly the failure asked of them - at exactly the speed asked of them - every time.
 
 | Emulator | Transport | Selects response by | Use it for |
 | --- | --- | --- | --- |
 | [`emulators/custom_header_response_to_http_request.py`](emulators/custom_header_response_to_http_request.py) | Python stdlib `http.server`, port 8080 | Request **payload** (`caller-number`) or `X-Caller-Number` header | Hung connections, service restarts, any verb, session creation |
-| [`emulators/flask_app/`](emulators/flask_app) | Flask, port 4000, containerized | Request **URL** (`/error/<code>`) | Deterministic 4xx/5xx status handling, browsable catalogue |
+| [`emulators/flask_app/`](emulators/flask_app) | Flask, port 4000, containerized | Request **URL** (`/error/<code>`), latency by `X-Response-Delay-Ms` header | Deterministic 4xx/5xx status handling, client timeout and retry paths, browsable catalogue |
 
 Published image: [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_app) on Docker Hub.
 
 > The `practice/` tree is unrelated: standalone algorithm and exercise scripts kept for reference. Nothing in `emulators/` depends on it. See [Practice scripts](#practice-scripts) at the end.
 
-> **Documentation status:** describes **v1.0.0**, reviewed 2026-08-10.
+> **Documentation status:** describes **v1.1.0**, reviewed 2026-08-12.
 > Each section below carries the release and date its content last changed, so a
 > reader arriving at a later version can see at a glance which parts moved. This
 > file always describes the *current* release; release-to-release history lives
@@ -88,9 +88,9 @@ The server is **single-threaded**, which is exactly what makes `590` a genuine s
 
 ## 2. Flask Error Code Simulator
 
-<sub>v1.0.0 &middot; 2026-08-10</sub>
+<sub>v1.1.0 &middot; 2026-08-12</sub>
 
-Returns any of **21 supported status codes**, with a browsable index page listing each one as a clickable link.
+Returns any of **21 supported status codes**, with a browsable index page listing each one as a clickable link, and will answer late by a caller-specified number of milliseconds.
 
 ```bash
 pip install -r emulators/flask_app/requirements.txt
@@ -113,6 +113,38 @@ open http://localhost:4000/                  # the catalogue
 `402 Payment Required` and `407 Proxy Authentication Required` are absent: every code present is reachable without a payment or proxy layer in front of the service. `419` (Insufficient Space on Resource) is non-standard but appears in the wild from some WebDAV and framework stacks. `600` exists to prove a client handles a status outside the registered range rather than crashing on it.
 
 Requesting an unlisted code returns **404**, so the supported set is discoverable by probing rather than only by reading the source.
+
+### Answering late
+
+A client's timeout, retry and backoff code is usually the least-tested part of it, for the simple reason that a real upstream cannot be asked to be slow on demand. Send **`X-Response-Delay-Ms`** on any request and the service answers that many milliseconds late, so a suite can place the delay on either side of its own timeout and assert the branch it actually cares about.
+
+```bash
+# A 503 that takes two seconds to arrive
+curl -i -H "X-Response-Delay-Ms: 2000" http://localhost:4000/error/503
+
+# A slow success, and a slow catalogue - the delay is not confined to /error
+curl -i -H "X-Response-Delay-Ms: 800" http://localhost:4000/
+```
+
+Every response carries **`X-Applied-Delay-Ms`**, reporting what was actually applied, including `0` when no delay was asked for. That is what makes the delay assertable without a stopwatch, which would otherwise be measuring the test runner's own scheduling as much as the service's behaviour.
+
+| Requested value | Result |
+| --- | --- |
+| absent | No delay. `X-Applied-Delay-Ms: 0` |
+| `0` to `30000` | Answers that many ms late, with the requested status |
+| above `30000` | **Refused** with `999`, immediately, naming the ceiling |
+| negative, fractional, non-numeric, empty | **Refused** with `999`, immediately |
+
+**A delay that cannot be honoured is refused, never approximated.** Two decisions follow from that and both are deliberate:
+
+- **The ceiling refuses rather than clamps.** A caller who asked for 60s, silently received 30s, and saw their 45s timeout not fire would conclude their client tolerates a 60s upstream. The run would not support that conclusion. Refusing tells them at once. The ceiling exists because a public container must not be parkable indefinitely by one request.
+- **The refusal is `999`, not `400`.** `999` sits outside the HTTP range on purpose, so it can never be mistaken for a status the service was *asked* to produce - the same sentinel, with the same meaning, as the caller-number emulator's. A `400` would be indistinguishable from `/error/400` working correctly. It is also specifically not a `500`: that would report a fault in the simulator when the truth is a malformed header.
+
+Unlike the caller-number emulator, a rejection here does **not** terminate the process. That emulator is spawned per test and exiting loudly is the right answer; this one is a shared container answering many callers, and one bad request must not take it away from the rest.
+
+**This is not a replacement for control code `590`.** That code accepts a connection and never answers at all, which is the right shape for proving a client eventually gives up. A bounded delay is the right shape for everything nearer the boundary: a response that is slow but valid, a retry that should not fire, a backoff that should. Use `590` for "never answers" and this for "answers late".
+
+The published image runs `flask run`, which defaults to `--with-threads`, so a delayed request does not block other callers of the same container.
 
 ### Error handling
 
@@ -142,9 +174,11 @@ docker stop errsim && docker rm errsim
 
 The image builds on `python:3.14.4-slim`, exposes **4000**, and starts `flask run --host=0.0.0.0` so it is reachable from outside the container.
 
-The published image carries Flask and its six transitive dependencies and nothing else. Nothing from `requirements-dev.txt` reaches it: the `requirements.txt` beside the Dockerfile pins Flask alone, and the dev dependencies stay at the repository root where the build never looks. A `.dockerignore` sits at the build-context root - `emulators/flask_app/`, the directory passed to `docker build`, not the repository root - so a local `venv/`, `__pycache__/` or stray `*.log` is never copied into a public artifact. Docker only reads `.dockerignore` from the context root, which is the whole reason its placement matters. Together with the slim base these took the published download from 397 MB to 46 MB.
+The published image carries Flask and its six transitive dependencies and nothing else. **Latency injection added no dependency to that closure** - it is `time.sleep` from the standard library - so the image's dependency contract is unchanged, and the scheduled consumer test that reads the published image still asserts the same set. A capability that quietly widened a public artifact's dependency surface would be a poor trade for a header. Nothing from `requirements-dev.txt` reaches it either: the `requirements.txt` beside the Dockerfile pins Flask alone, and the dev dependencies stay at the repository root where the build never looks. A `.dockerignore` sits at the build-context root - `emulators/flask_app/`, the directory passed to `docker build`, not the repository root - so a local `venv/`, `__pycache__/` or stray `*.log` is never copied into a public artifact. Docker only reads `.dockerignore` from the context root, which is the whole reason its placement matters. Together with the slim base these took the published download from 397 MB to 46 MB.
 
-> **Provenance.** The emulators and their test suites are original work; no emulator source file has been modified with AI assistance. Such assistance in this repository is limited to container build configuration - the `.dockerignore` rules, a corrected comment in `Dockerfile.dev` - and the wording of this Docker section. Commit `5b84be9a` carries a `Co-Authored-By` trailer for that reason; its diff is five lines.
+> **Provenance.** The emulators and their test suites are original work. Through v1.0.0 no emulator source file had been modified with AI assistance, which this note recorded at the time; assistance was limited to container build configuration - the `.dockerignore` rules, a corrected comment in `Dockerfile.dev` - and the wording of this Docker section. Commit `5b84be9a` carries a `Co-Authored-By` trailer for that reason; its diff is five lines.
+>
+> **That boundary moved in v1.1.0.** Latency injection in `emulators/flask_app/app.py`, its fifteen tests, the threaded `flask_server` fixture, and the *Answering late* section above were written with AI assistance, and the commits carry `Co-Authored-By` trailers accordingly. The original design of both emulators, the caller-number emulator in full, and every test predating v1.1.0 remain unassisted. The note is updated rather than dropped: a provenance claim that silently stops being true is worse than one that was never made.
 
 As a GitHub Actions service container:
 
@@ -166,7 +200,7 @@ jobs:
 
 ## Example consumer tests
 
-<sub>v1.0.0 &middot; 2026-08-10</sub>
+<sub>v1.1.0 &middot; 2026-08-12</sub>
 
 Illustrations of how a suite consumes these emulators. They are examples for a *consuming* project, not tests of this repository.
 
@@ -206,6 +240,21 @@ def test_client_retries_then_gives_up(caplog):
     assert caplog.text.count("Retrying") == 3
 ```
 
+**A slow-but-valid response does not trip a retry that should not fire** - the case the ceiling and the sentinel exist to keep honest:
+
+```python
+def test_client_does_not_retry_a_slow_but_final_response():
+    """A slow 404 is still a 404: it must be returned, not retried."""
+    session = build_session_under_test(max_retries=3, timeout=5)   # your client
+    response = session.get(
+        f"{SIMULATOR}/error/404",
+        headers={"X-Response-Delay-Ms": "2000"},                   # slow, but final
+    )
+    assert response.status_code == 404
+    assert response.headers["X-Applied-Delay-Ms"] == "2000"        # the delay happened
+    assert session.attempt_count == 1                              # and nothing retried
+```
+
 **A hung upstream trips the client timeout, not the suite timeout** - the case a mock cannot reproduce, because the connection has to genuinely stay open:
 
 ```python
@@ -234,11 +283,11 @@ def test_emulator_reports_uninterpretable_requests_as_999():
 
 ## Testing the emulators
 
-<sub>v1.0.0 &middot; 2026-08-10</sub>
+<sub>v1.1.0 &middot; 2026-08-12</sub>
 
 [![Emulator Test Suite](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml/badge.svg)](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml)
 
-**93 end-to-end tests** covering both emulators.
+**108 end-to-end tests** covering both emulators.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -252,7 +301,9 @@ pylint --fail-under=10 emulators/tests emulators/flask_app/app.py \
 
 The two emulators are tested in opposite ways, and the difference is not stylistic.
 
-The **Flask simulator** is a pure request/response service, so its 21-code matrix runs through the WSGI test client: no socket, no port, nothing that can flake. Two assertions run it on a real loopback socket, because a WSGI client proves the logic but not that the service speaks HTTP.
+The **Flask simulator** is a pure request/response service, so its 21-code matrix runs through the WSGI test client: no socket, no port, nothing that can flake. Three assertions run it on a real loopback socket, because a WSGI client proves the logic but not that the service speaks HTTP - and a delay implemented only in the WSGI path would satisfy every other assertion while helping nobody. That loopback server is threaded, matching the published image's `flask run --with-threads` default, so the fixture represents the artifact consumers actually run rather than a stricter one.
+
+Latency assertions are measured with `time.perf_counter` against a **floor**, not a window: a delay must be at least what was asked for, less roughly 16ms of Windows timer granularity. Asserting an upper bound would be asserting that the runner was not busy, which is not a property of this service.
 
 The **caller-number emulator** deliberately blocks or kills its own process - `999` exits non-zero, `592` exits zero, `590` blocks the single-threaded server for two minutes. **Every test therefore gets its own subprocess on its own ephemeral port.** Sharing one would make each result depend on which destructive test ran first, which is a sequence rather than a suite.
 
@@ -267,7 +318,7 @@ Determinism is enforced rather than assumed:
 
 | Suite | Tests | Focus |
 | --- | --- | --- |
-| `test_flask_error_simulator.py` | 59 | Every advertised code returned verbatim; bodies naming code and description; unsupported codes and unroutable paths resolving to 404; the catalogue linking every code; real-HTTP reachability |
+| `test_flask_error_simulator.py` | 74 | Every advertised code returned verbatim; bodies naming code and description; unsupported codes and unroutable paths resolving to 404; the catalogue linking every code and documenting the delay contract; latency applied, reported, composed with the requested status and refused rather than clamped or approximated; real-HTTP reachability including a delayed response over a socket |
 | `test_caller_number_emulator.py` | 34 | Payload-driven status selection across 12 codes and all 5 verbs; `X-Caller-Number` fallback and body precedence; UUID4 session uniqueness; all four `999` paths including the non-zero process exit; the `590` stall, `592` shutdown and `591` listener drop; JSON content-type contract |
 
 CI runs the suites on a matrix of **Ubuntu and Windows** against **Python 3.12 and 3.14**, with `fail-fast` disabled: socket binding and process-termination semantics differ per platform, and that is precisely what the caller-number emulator relies on. Static analysis runs first as a blocking gate, so a hygiene regression fails before any process is spawned.
@@ -280,12 +331,15 @@ The caller-number emulator reads `EMULATOR_PORT`, defaulting to **8080**. The de
 
 ## Choosing between them
 
-<sub>v1.0.0 &middot; 2026-08-10</sub>
+<sub>v1.1.0 &middot; 2026-08-12</sub>
 
 | Need | Use |
 | --- | --- |
 | A specific 4xx/5xx status, repeatedly | Flask simulator |
-| A hung connection / client-timeout path | Caller-number emulator, `590` |
+| An upstream that **never answers** | Caller-number emulator, `590` |
+| An upstream that **answers late**, by a known amount | Flask simulator, `X-Response-Delay-Ms` |
+| A response either side of a client timeout boundary | Flask simulator, `X-Response-Delay-Ms` |
+| A retry or backoff path exercised deterministically | Flask simulator, status + delay together |
 | A status selected by request *payload* rather than URL | Caller-number emulator |
 | Non-GET verbs (PUT, PATCH, DELETE) | Caller-number emulator |
 | A container in CI | Flask simulator |

@@ -123,6 +123,12 @@ def flask_server_fixture() -> Iterator[str]:
     reachable over HTTP. A real server is used for that narrow purpose, run in a
     daemon thread so no subprocess or Flask CLI is involved.
 
+    The server is threaded because the published container is: the image's
+    ``flask run`` command defaults to ``--with-threads``. Since the simulator
+    gained a caller-controlled delay, that difference stopped being cosmetic -
+    a single-threaded fixture would serialise behind any delayed request and
+    would misrepresent the artifact consumers actually run.
+
     Preconditions:
         - ``emulators/flask_app/app.py`` is importable.
 
@@ -133,7 +139,7 @@ def flask_server_fixture() -> Iterator[str]:
     from app import app as flask_application  # pylint: disable=import-outside-toplevel
 
     port = reserve_free_port()
-    server = make_server("127.0.0.1", port, flask_application)
+    server = make_server("127.0.0.1", port, flask_application, threaded=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
