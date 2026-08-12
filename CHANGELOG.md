@@ -27,6 +27,63 @@ in the evening in one timezone still agrees with the commit that carries it.
 
 ---
 
+## v1.2.0 - 2026-08-12
+
+Behavioural coverage of the container itself. **Minor**: a new capability of the
+test infrastructure, with no change to any emulator's behaviour.
+
+### Added
+
+- **`emulators/image_tests` - 28 assertions against a running container.** Every
+  expectation is imported from the source tree and asserted over HTTP, so the
+  suite does not re-check that the code is correct. It checks that the artifact
+  agrees with the code it claims to be built from: every advertised status
+  served verbatim, an unlisted code refused, the catalogue rendering (which
+  exercises Jinja rather than merely proving a socket accepts), latency applied
+  and reported, and the 999 sentinel surviving a real HTTP server on the way out.
+
+  This closes a seam between two checks that already existed and never met. The
+  108 tests in `emulators/tests` exercise the **source**, through the WSGI client
+  and a loopback server. The scheduled test in
+  [PlaywrightAPWebsiteAutomation](https://github.com/apolskiy/PlaywrightAPWebsiteAutomation)
+  reads the **published image's** dependency closure from the registry. An image
+  built from stale source, or one whose `CMD` no longer starts, satisfies both:
+  the source is fine, the layers carry the right packages, and nothing ever asks
+  the artifact to answer a request.
+
+- **`image-tests.yml`, running that suite against two different containers.**
+  `built-image` builds from the commit under test, so a broken Dockerfile or app
+  fails before anything is published; `published-image` uses
+  `apolskiy/flask_app:latest` as a GitHub Actions service container - the pattern
+  this README advertises to consumers, applied to this repository's own artifact.
+
+  The `built-image` job also asserts what HTTP cannot see: that the process runs
+  as `emulator` rather than root, and that `/app` holds `app.py` and
+  `requirements.txt` and nothing else. A root-running image that ships its own
+  Dockerfile answers requests perfectly well, which is exactly why those two
+  needed a check that is not a request.
+
+### Notes
+
+- **The suite lives outside `testpaths` on purpose.** A plain `pytest` run still
+  collects exactly 108 tests and reports no skips. Wiring these in behind a skip
+  marker would have added twenty-eight skips to every local run, and a suite that
+  always reports skips teaches its reader to stop looking at them.
+- **A red `published-image` job usually means "publish", not "fix a test".** It
+  compares the published image against the branch's source, so the common cause
+  is a merged change that has not been built and pushed yet. That is a real
+  signal and deliberately not suppressed: the alternative is a published artifact
+  quietly drifting from the source that documents it.
+- **`built-image` builds and runs the container by hand rather than declaring it
+  as a service.** Service images are pulled before any step executes, so a job
+  cannot build an image and then consume it as its own service - the artifact
+  would have to be published first, which is the event this job exists to precede.
+- The scheduled run is weekly, matching how this portfolio treats every check
+  that depends on a third party: registry availability has no business failing a
+  push, and image drift is a monthly risk rather than a per-commit one.
+
+---
+
 ## v1.1.2 - 2026-08-12
 
 Container hygiene. **Patch**: the emulator's HTTP contract is untouched - same

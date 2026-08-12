@@ -57,7 +57,7 @@ jobs:
       # Blocking gate, ahead of the suites: a hygiene regression should fail
       # before any process is spawned, not after a green test run buries it.
       - name: Static Analysis
-        run: pylint --fail-under=10 emulators/tests emulators/flask_app/app.py emulators/custom_header_response_to_http_request.py
+        run: pylint --fail-under=10 emulators/tests emulators/image_tests emulators/flask_app/app.py emulators/custom_header_response_to_http_request.py
 
       # pytest-randomly shuffles collection order on every run, so the seed
       # printed in the header is what makes a failure reproducible.

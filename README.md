@@ -14,7 +14,7 @@ Published image: [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_
 
 > The `practice/` tree is unrelated: standalone algorithm and exercise scripts kept for reference. Nothing in `emulators/` depends on it. See [Practice scripts](#practice-scripts) at the end.
 
-> **Documentation status:** describes **v1.1.2**, reviewed 2026-08-12.
+> **Documentation status:** describes **v1.2.0**, reviewed 2026-08-12.
 > Each section below carries the release and date its content last changed, so a
 > reader arriving at a later version can see at a glance which parts moved. This
 > file always describes the *current* release; release-to-release history lives
@@ -302,19 +302,39 @@ def test_emulator_reports_uninterpretable_requests_as_999():
 
 ## Testing the emulators
 
-<sub>v1.1.0 &middot; 2026-08-12</sub>
+<sub>v1.2.0 &middot; 2026-08-12</sub>
 
 [![Emulator Test Suite](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml/badge.svg)](https://github.com/apolskiy/PublicAP/actions/workflows/emulator-tests.yml)
 
-**108 end-to-end tests** covering both emulators.
+**108 end-to-end tests** covering both emulators, plus **28 that run against a container**.
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                    # both suites
+pytest                                    # both suites - the 108
 pytest emulators/tests/test_flask_error_simulator.py
-pylint --fail-under=10 emulators/tests emulators/flask_app/app.py \
-       emulators/custom_header_response_to_http_request.py
+pylint --fail-under=10 emulators/tests emulators/image_tests \
+       emulators/flask_app/app.py emulators/custom_header_response_to_http_request.py
+
+# The container suite, against anything already listening
+docker run --rm -d --name errsim -p 4000:4000 apolskiy/flask_app:1.1.2
+EMULATOR_BASE_URL=http://127.0.0.1:4000 pytest emulators/image_tests
+docker rm -f errsim
 ```
+
+### Testing the image, not the source
+
+Two checks existed and never met. The 108 above exercise the Flask simulator's **source**, through the WSGI client and a loopback server. A scheduled test in [PlaywrightAPWebsiteAutomation](https://github.com/apolskiy/PlaywrightAPWebsiteAutomation) reads the **published image's** dependency closure straight from the registry. An image built from stale source, or one whose `CMD` no longer starts, satisfies both: the source is fine, the layers carry the right packages, and nothing ever asked the artifact to answer a request.
+
+`emulators/image_tests` closes that gap. Every expectation is imported from the source tree and asserted against a running container over HTTP, so the suite does not re-check that the code is correct - it checks that **the artifact agrees with the code it claims to be built from**. It is deliberately outside `testpaths`, so an ordinary `pytest` run neither collects nor skips it: a default run reporting a wad of skips teaches a reader to ignore skips.
+
+`image-tests.yml` runs it twice, against two different containers, because these are different questions:
+
+| Job | Container | A failure means |
+| --- | --- | --- |
+| `built-image` | Built from that commit | The Dockerfile or the app is broken - caught **before** anything is published |
+| `published-image` | `apolskiy/flask_app:latest` | The published artifact and `main` disagree - usually a merged change that has not been published yet |
+
+The first runs on pushes and pull requests touching the image; the second weekly and on demand, because a check that depends on a registry being reachable has no business failing a push. The `built-image` job also asserts what HTTP cannot see - that the process runs as `emulator` rather than root, and that `/app` holds `app.py` and `requirements.txt` and nothing else. A root-running image that ships its own Dockerfile answers requests perfectly well.
 
 ### Isolation strategy
 
@@ -369,12 +389,13 @@ The caller-number emulator reads `EMULATOR_PORT`, defaulting to **8080**. The de
 
 ## Repository layout
 
-<sub>v1.0.0 &middot; 2026-08-10</sub>
+<sub>v1.2.0 &middot; 2026-08-12</sub>
 
 ```text
 PublicAP/
 ├── .github/workflows/
-│   └── emulator-tests.yml        # Lint gate + both suites, OS/Python matrix
+│   ├── emulator-tests.yml        # Lint gate + both suites, OS/Python matrix
+│   └── image-tests.yml           # Behavioural checks against a running container
 ├── emulators/                    # Test infrastructure - the subject of this README
 │   ├── custom_header_response_to_http_request.py   # Caller-number emulator, port 8080
 │   ├── flask_app/
@@ -382,11 +403,14 @@ PublicAP/
 │   │   ├── Dockerfile.dev        # python:3.14.4-slim
 │   │   ├── .dockerignore         # At the build-context root, where Docker reads it
 │   │   └── requirements.txt      # Flask only
-│   └── tests/
-│       ├── conftest.py           # Isolation fixtures
-│       ├── emulator_control.py   # Process control and readiness helpers
-│       ├── test_caller_number_emulator.py
-│       └── test_flask_error_simulator.py
+│   ├── tests/
+│   │   ├── conftest.py           # Isolation fixtures
+│   │   ├── emulator_control.py   # Process control and readiness helpers
+│   │   ├── test_caller_number_emulator.py
+│   │   └── test_flask_error_simulator.py
+│   └── image_tests/              # Outside testpaths; needs a running container
+│       ├── conftest.py           # Base-URL and readiness fixture
+│       └── test_running_image.py
 ├── .pylintrc                     # Static analysis, gated at 10.00/10
 ├── pytest.ini
 ├── requirements-dev.txt          # Test dependencies
