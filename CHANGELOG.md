@@ -27,6 +27,61 @@ in the evening in one timezone still agrees with the commit that carries it.
 
 ---
 
+## v1.1.1 - 2026-08-12
+
+Container tags now name the emulator release. **Patch** under this file's scope,
+which covers `emulators/` behaviour: no status code, control code or endpoint
+changed, and the image contents are byte-identical to the ones v1.1.0 published.
+See the note below on why "patch" is nevertheless not the whole story.
+
+### Changed
+
+- **Image tags track the emulator release rather than the Python base version.**
+  `apolskiy/flask_app:1.1.0` is the release this README describes and is the tag
+  to pin in CI; `latest` continues to follow the newest release.
+
+  The old scheme had one tag, `3.14.4`, naming the base image's Python version.
+  It read like a release of this emulator and never was one - and the moment
+  emulator releases started carrying numbers of their own, it read like emulator
+  3.14.4, which is worse than ambiguous. The base version is now recorded in the
+  README and in `Dockerfile.dev`, where a reader who cares can find it, rather
+  than in the one field a consumer uses to choose what they are running.
+
+- **The README now says to pin a release in CI and treat `latest` as a look
+  around.** A suite pulling `latest` silently re-pulls a different artifact the
+  day a new one is published, turning a deliberate release into an unannounced
+  change to somebody else's test run - the opposite of what infrastructure whose
+  value is repeatability should do. The GitHub Actions service-container example
+  is pinned accordingly.
+
+### Added
+
+- **`1.0.0`, backfilled from the existing `3.14.4` digest.** The pre-latency
+  image is preserved under the name it always deserved, by re-tagging the same
+  manifest rather than rebuilding, so the digest is unchanged and anything
+  already pulled still matches. A run from before `X-Response-Delay-Ms` existed
+  stays reproducible.
+
+### Notes
+
+- **Retiring `3.14.4` is a breaking change for anyone who pinned it**, which is
+  why the image was preserved as `1.0.0` before the old tag was withdrawn rather
+  than after. This file's SemVer scope is the emulators' HTTP contract, and by
+  that measure nothing changed; by the measure of how the artifact is
+  distributed, a tag disappeared. Recorded here plainly rather than resolved by
+  choosing whichever version number sounded better.
+- **Nothing verifies that the published image behaves correctly.** The consumer
+  test in
+  [PlaywrightAPWebsiteAutomation](https://github.com/apolskiy/PlaywrightAPWebsiteAutomation)
+  reads the image's dependency closure, and the 108 tests here exercise the
+  emulator's source through WSGI and a loopback socket - but no test connects the
+  two. An image built from stale source, or one whose `CMD` no longer starts,
+  would satisfy both. That gap predates this release and is unchanged by it;
+  it is noted because versioned tags make the artifact easier to pin and
+  therefore easier to trust further than it has earned.
+
+---
+
 ## v1.1.0 - 2026-08-12
 
 Latency injection in the Flask simulator. A **Minor** release: the capability is
