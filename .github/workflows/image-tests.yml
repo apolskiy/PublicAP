@@ -98,10 +98,26 @@ jobs:
 
           echo "Runs as ${RUNTIME_USER}; /app holds ${CONTENTS}"
 
+      # `--junitxml` is named explicitly rather than inherited from pytest.ini,
+      # which points every run at the same emulator-results.xml. Two jobs writing
+      # one filename produce two artifacts that cannot be told apart once
+      # collected, and the image under test is exactly the distinction worth
+      # keeping - see PortfolioTestInsights.
       - name: Run Behavioural Suite Against the Container
         env:
           EMULATOR_BASE_URL: http://127.0.0.1:4000
-        run: pytest emulators/image_tests
+        run: pytest emulators/image_tests --junitxml=reports/image-results.xml
+
+      # Uploaded on failure too: a red run is the one whose results a reader
+      # most wants, and `if: always()` is what keeps the record continuous
+      # rather than silently skipping the runs that went wrong.
+      - name: Upload Image Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-reports-built
+          path: reports/image-results.xml
+          if-no-files-found: warn
 
       - name: Container Logs
         if: always()
@@ -147,4 +163,15 @@ jobs:
           # A failure here compares the published image against this branch's
           # source. The usual cause is a merged change that has not been built
           # and pushed yet, and the fix is to publish rather than to edit a test.
-          pytest emulators/image_tests
+          pytest emulators/image_tests --junitxml=reports/image-results.xml
+
+      # Kept distinct from the built-image artifact on purpose. The two jobs run
+      # identical tests against different images, so merging them would average
+      # over a difference that is the whole point of running both.
+      - name: Upload Image Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-reports-published
+          path: reports/image-results.xml
+          if-no-files-found: warn
