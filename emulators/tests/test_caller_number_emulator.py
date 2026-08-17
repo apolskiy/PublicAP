@@ -92,6 +92,7 @@ def call(
 class TestPayloadDrivenStatus:
     """The status is selected by the last three digits of ``caller-number``."""
 
+    @pytest.mark.test_id("PAP_10007")
     @pytest.mark.parametrize("status", BENIGN_CODES)
     def test_last_three_digits_select_the_status(
         self, emulator: EmulatorProcess, status: int
@@ -122,6 +123,7 @@ class TestPayloadDrivenStatus:
             f"got {response.status_code}"
         )
 
+    @pytest.mark.test_id("PAP_10008")
     def test_echoed_body_reports_the_code_it_served(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -142,6 +144,7 @@ class TestPayloadDrivenStatus:
         response = call(emulator, json_body={"caller-number": number_for(503)})
         assert response.json() == {"status": "Response with code 503"}
 
+    @pytest.mark.test_id("PAP_10009")
     @pytest.mark.parametrize("verb", SUPPORTED_VERBS)
     def test_every_verb_routes_through_the_same_logic(
         self, emulator: EmulatorProcess, verb: str
@@ -169,6 +172,7 @@ class TestPayloadDrivenStatus:
         )
         assert response.status_code == 404
 
+    @pytest.mark.test_id("PAP_10010")
     def test_status_above_the_http_range_is_still_served(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -196,6 +200,7 @@ class TestPayloadDrivenStatus:
 class TestHeaderFallback:
     """With no body, the status comes from ``X-Caller-Number``."""
 
+    @pytest.mark.test_id("PAP_10011")
     def test_header_supplies_the_status_when_no_body_is_sent(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -220,6 +225,7 @@ class TestHeaderFallback:
         response = call(emulator, method="GET", headers={"X-Caller-Number": "404"})
         assert response.status_code == 404
 
+    @pytest.mark.test_id("PAP_10012")
     def test_body_takes_precedence_over_the_header(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -252,6 +258,7 @@ class TestHeaderFallback:
 class TestSessionCreation:
     """``201`` emulates session creation."""
 
+    @pytest.mark.test_id("PAP_10013")
     def test_201_returns_a_uuid_session_identifier(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -275,6 +282,7 @@ class TestSessionCreation:
         session_id = response.json()["session_id"]
         assert uuid.UUID(session_id).version == 4, f"Not a UUID4: {session_id}"
 
+    @pytest.mark.test_id("PAP_10014")
     def test_each_session_identifier_is_unique(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -305,6 +313,7 @@ class TestSessionCreation:
 class TestSentinel999:
     """``999`` marks a request the emulator could not interpret."""
 
+    @pytest.mark.test_id("PAP_10015")
     @pytest.mark.parametrize(
         "payload, reason",
         (
@@ -341,6 +350,7 @@ class TestSentinel999:
         response = call(emulator, json_body=payload)
         assert response.status_code == 999, f"Expected 999 for {reason}"
 
+    @pytest.mark.test_id("PAP_10016")
     def test_invalid_json_yields_999_with_an_explanatory_body(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -368,6 +378,7 @@ class TestSentinel999:
         assert response.status_code == 999
         assert response.json() == {"error": "Invalid JSON body"}
 
+    @pytest.mark.test_id("PAP_10017")
     def test_no_body_and_no_header_yields_999(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -388,6 +399,7 @@ class TestSentinel999:
         """
         assert call(emulator, method="GET").status_code == 999
 
+    @pytest.mark.test_id("PAP_10018")
     def test_the_process_exits_non_zero_after_a_999(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -422,6 +434,7 @@ class TestSentinel999:
 class TestLifecycleControlCodes:
     """The control codes that stall or terminate the emulator."""
 
+    @pytest.mark.test_id("PAP_10019")
     def test_590_stalls_without_answering(self, emulator: EmulatorProcess) -> None:
         """590 must accept the connection and never reply.
 
@@ -457,6 +470,7 @@ class TestLifecycleControlCodes:
             "590 should leave the emulator alive but unresponsive; it exited."
         )
 
+    @pytest.mark.test_id("PAP_10020")
     def test_592_shuts_the_emulator_down(self, emulator: EmulatorProcess) -> None:
         """592 must stop the service and stop accepting connections.
 
@@ -481,6 +495,7 @@ class TestLifecycleControlCodes:
             "592 was served but the port is still accepting connections."
         )
 
+    @pytest.mark.test_id("PAP_10021")
     def test_591_drops_the_listener(self, emulator: EmulatorProcess) -> None:
         """591 must close the listening socket without answering.
 
@@ -509,6 +524,7 @@ class TestLifecycleControlCodes:
 class TestResponseContract:
     """Shape guarantees a consumer can rely on."""
 
+    @pytest.mark.test_id("PAP_10022")
     def test_responses_declare_a_json_content_type(
         self, emulator: EmulatorProcess
     ) -> None:
@@ -529,6 +545,7 @@ class TestResponseContract:
         response = call(emulator, json_body={"caller-number": number_for(200)})
         assert response.headers["Content-type"] == "application/json"
 
+    @pytest.mark.test_id("PAP_10023")
     def test_response_body_is_parseable_json(
         self, emulator: EmulatorProcess
     ) -> None:

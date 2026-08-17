@@ -61,6 +61,7 @@ TIMER_TOLERANCE_MS: Final[int] = 25
 class TestServedStatuses:
     """The container serves the status set this commit's source declares."""
 
+    @pytest.mark.test_id("PAP_10001")
     @pytest.mark.parametrize("code", ALL_SUPPORTED_CODES)
     def test_container_serves_every_advertised_code(
         self, image_base_url: str, code: int
@@ -93,6 +94,7 @@ class TestServedStatuses:
             "built from disagree."
         )
 
+    @pytest.mark.test_id("PAP_10002")
     def test_unsupported_code_returns_404(self, image_base_url: str) -> None:
         """An unlisted code must be reported absent by the container too.
 
@@ -113,6 +115,7 @@ class TestServedStatuses:
         )
         assert response.status_code == 404
 
+    @pytest.mark.test_id("PAP_10003")
     def test_catalogue_renders(self, image_base_url: str) -> None:
         """The index must render, proving templating works inside the image.
 
@@ -146,6 +149,7 @@ class TestServedStatuses:
 class TestLatencyInImage:
     """Latency injection works in the artifact, not only in the source."""
 
+    @pytest.mark.test_id("PAP_10004")
     def test_requested_delay_is_applied_by_the_container(
         self, image_base_url: str
     ) -> None:
@@ -185,6 +189,7 @@ class TestLatencyInImage:
             f"{DELAY_UNDER_TEST_MS}ms delay being requested."
         )
 
+    @pytest.mark.test_id("PAP_10005")
     def test_undelayed_request_reports_zero(self, image_base_url: str) -> None:
         """Every response must carry the applied-delay header, including zero.
 
@@ -205,6 +210,7 @@ class TestLatencyInImage:
         )
         assert response.headers[DELAY_APPLIED_HEADER] == "0"
 
+    @pytest.mark.test_id("PAP_10006")
     @pytest.mark.parametrize("delay_value", ("abc", "-1", str(MAX_DELAY_MS + 1)))
     def test_uninterpretable_delay_is_refused_by_the_container(
         self, image_base_url: str, delay_value: str

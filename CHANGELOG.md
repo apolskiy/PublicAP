@@ -27,6 +27,42 @@ in the evening in one timezone still agrees with the commit that carries it.
 
 ---
 
+## v1.3.0 - 2026-08-16
+
+### Added
+
+- **Every test now carries an assigned, stable identifier.** Forty-two tests are
+  marked `PAP_10001` through `PAP_10042` via `@pytest.mark.test_id(...)`;
+  the next free number is `PAP_10043`, and numbers are never reused.
+
+  The identifier exists because a test's name is not a stable identity. Any
+  store keyed on the name forks a test's history the moment it is renamed -
+  silently, because both halves still look like valid tests, and the only
+  symptom is one long record quietly becoming two short ones. Names should stay
+  free to improve; this is what makes that free.
+
+  A new `emulators/conftest.py` republishes the marker as a JUnit `<property>` at
+  collection time. It sits one level above both `tests/` and `image_tests/` so the rule is
+  defined exactly once - a copy in each sibling would be two rules, and the copy that stops
+  matching is the one nobody notices. This suite uses no Allure, so `user_properties` is the
+  whole delivery mechanism.
+
+  Verified end to end - a full run emitted 108 `<testcase>` elements, every one
+  carrying a `test_id` property, across 36 distinct identifiers.
+
+- **`test_id` registered as a marker.** Required rather than cosmetic: this suite runs under `--strict-markers`, so an
+  unregistered marker is an error, not a warning.
+
+### Notes
+
+- No test was renamed and no behaviour changed. The diff is decorator
+  insertions plus the collection hook.
+- The identifier is additive for history: the collector keys on
+  `COALESCE(test_id, test_uid)`, so results recorded before these IDs existed -
+  including artifacts now expired - still stitch to results recorded after.
+
+---
+
 ## v1.2.0 - 2026-08-12
 
 Behavioural coverage of the container itself. **Minor**: a new capability of the

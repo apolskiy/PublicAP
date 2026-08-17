@@ -91,6 +91,7 @@ def _elapsed_ms(started_at: float) -> float:
 class TestSupportedCodes:
     """The simulator returns each advertised status exactly."""
 
+    @pytest.mark.test_id("PAP_10024")
     @pytest.mark.parametrize("code", ALL_SUPPORTED_CODES)
     def test_requested_code_is_returned_verbatim(
         self, flask_client: FlaskClient, code: int
@@ -121,6 +122,7 @@ class TestSupportedCodes:
             "consuming suite proves the wrong branch."
         )
 
+    @pytest.mark.test_id("PAP_10025")
     @pytest.mark.parametrize("code", ALL_SUPPORTED_CODES)
     def test_response_body_names_the_code_and_its_description(
         self, flask_client: FlaskClient, code: int
@@ -152,6 +154,7 @@ class TestSupportedCodes:
             f"'{SUPPORTED_ERROR_CODES[code]}': {body!r}"
         )
 
+    @pytest.mark.test_id("PAP_10026")
     def test_the_supported_set_matches_its_documented_shape(self) -> None:
         """The advertised set must stay the one the README and portfolio state.
 
@@ -181,6 +184,7 @@ class TestSupportedCodes:
         assert 402 not in ALL_SUPPORTED_CODES, "402 was not meant to be reachable"
         assert 407 not in ALL_SUPPORTED_CODES, "407 was not meant to be reachable"
 
+    @pytest.mark.test_id("PAP_10027")
     def test_non_standard_600_is_served_rather_than_rejected(
         self, flask_client: FlaskClient
     ) -> None:
@@ -207,6 +211,7 @@ class TestSupportedCodes:
 class TestUnsupportedRequests:
     """Anything outside the advertised set resolves to a clean 404."""
 
+    @pytest.mark.test_id("PAP_10028")
     @pytest.mark.parametrize("code", UNSUPPORTED_CODES)
     def test_unsupported_code_returns_404(
         self, flask_client: FlaskClient, code: int
@@ -231,6 +236,7 @@ class TestUnsupportedRequests:
         """
         assert flask_client.get(f"/error/{code}").status_code == 404
 
+    @pytest.mark.test_id("PAP_10029")
     @pytest.mark.parametrize("path", UNROUTABLE_PATHS)
     def test_unroutable_path_returns_404(
         self, flask_client: FlaskClient, path: str
@@ -259,6 +265,7 @@ class TestUnsupportedRequests:
 class TestCatalogue:
     """The index page is the simulator's own documentation."""
 
+    @pytest.mark.test_id("PAP_10030")
     def test_index_lists_every_supported_code(self, flask_client: FlaskClient) -> None:
         """Every supported code must be reachable from the index.
 
@@ -292,6 +299,7 @@ class TestCatalogue:
 class TestErrorHandling:
     """A fault in the simulator stays distinguishable from a requested failure."""
 
+    @pytest.mark.test_id("PAP_10031")
     def test_aborted_requests_render_their_own_status(
         self, flask_client: FlaskClient
     ) -> None:
@@ -329,6 +337,7 @@ class TestLatencyInjection:
     that cannot be honoured is refused rather than approximated.
     """
 
+    @pytest.mark.test_id("PAP_10032")
     def test_no_delay_header_answers_immediately(
         self, flask_client: FlaskClient
     ) -> None:
@@ -361,6 +370,7 @@ class TestLatencyInjection:
             "the measurement to mean anything."
         )
 
+    @pytest.mark.test_id("PAP_10033")
     def test_requested_delay_is_applied_and_reported(
         self, flask_client: FlaskClient
     ) -> None:
@@ -397,6 +407,7 @@ class TestLatencyInjection:
             "a client's timeout test pass without ever reaching its timeout."
         )
 
+    @pytest.mark.test_id("PAP_10034")
     def test_delay_composes_with_the_requested_status(
         self, flask_client: FlaskClient
     ) -> None:
@@ -425,6 +436,7 @@ class TestLatencyInjection:
         assert response.status_code == 503
         assert "Service Unavailable" in response.get_data(as_text=True)
 
+    @pytest.mark.test_id("PAP_10035")
     @pytest.mark.parametrize("path", ("/", "/error/404", "/error/600"))
     def test_delay_applies_to_every_route(
         self, flask_client: FlaskClient, path: str
@@ -453,6 +465,7 @@ class TestLatencyInjection:
         )
         assert response.headers[DELAY_APPLIED_HEADER] == str(DELAY_UNDER_TEST_MS)
 
+    @pytest.mark.test_id("PAP_10036")
     @pytest.mark.parametrize("delay_value", UNINTERPRETABLE_DELAYS)
     def test_uninterpretable_delay_yields_the_sentinel(
         self, flask_client: FlaskClient, delay_value: str
@@ -486,6 +499,7 @@ class TestLatencyInjection:
             "never happened."
         )
 
+    @pytest.mark.test_id("PAP_10037")
     def test_refusal_is_not_a_server_error(self, flask_client: FlaskClient) -> None:
         """A rejected header must not be reported as a fault in the simulator.
 
@@ -514,6 +528,7 @@ class TestLatencyInjection:
         assert response.status_code == UNINTERPRETABLE_REQUEST
         assert DELAY_REQUEST_HEADER in response.get_data(as_text=True)
 
+    @pytest.mark.test_id("PAP_10038")
     def test_delay_above_the_ceiling_is_refused_rather_than_clamped(
         self, flask_client: FlaskClient
     ) -> None:
@@ -552,6 +567,7 @@ class TestLatencyInjection:
             "service just declined to act on."
         )
 
+    @pytest.mark.test_id("PAP_10039")
     def test_catalogue_documents_the_delay_contract(
         self, flask_client: FlaskClient
     ) -> None:
@@ -591,6 +607,7 @@ class TestLatencyInjection:
 class TestOverRealHttp:
     """The simulator is reachable over HTTP, not only through WSGI."""
 
+    @pytest.mark.test_id("PAP_10040")
     def test_status_is_served_over_a_real_socket(self, flask_server: str) -> None:
         """A real client on a real socket must observe the requested status.
 
@@ -616,6 +633,7 @@ class TestOverRealHttp:
         assert response.status_code == 503
         assert "Service Unavailable" in response.text
 
+    @pytest.mark.test_id("PAP_10041")
     def test_delay_is_applied_over_a_real_socket(self, flask_server: str) -> None:
         """The delay must reach a real client, not only the WSGI layer.
 
@@ -652,6 +670,7 @@ class TestOverRealHttp:
             f"despite a {DELAY_UNDER_TEST_MS}ms delay being requested."
         )
 
+    @pytest.mark.test_id("PAP_10042")
     def test_catalogue_is_served_over_a_real_socket(self, flask_server: str) -> None:
         """The index must render for a browser, not only a test client.
 

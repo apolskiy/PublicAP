@@ -14,7 +14,7 @@ Published image: [`apolskiy/flask_app`](https://hub.docker.com/r/apolskiy/flask_
 
 > The `practice/` tree is unrelated: standalone algorithm and exercise scripts kept for reference. Nothing in `emulators/` depends on it. See [Practice scripts](#practice-scripts) at the end.
 
-> **Documentation status:** describes **v1.2.0**, reviewed 2026-08-12.
+> **Documentation status:** describes **v1.3.0**, reviewed 2026-08-16.
 > Each section below carries the release and date its content last changed, so a
 > reader arriving at a later version can see at a glance which parts moved. This
 > file always describes the *current* release; release-to-release history lives
@@ -386,6 +386,39 @@ The caller-number emulator reads `EMULATOR_PORT`, defaulting to **8080**. The de
 | Session-creation response with a unique id | Caller-number emulator, `201` |
 
 ---
+
+## Test Identity
+
+<sub>v1.3.0 &middot; 2026-08-16</sub>
+
+Every test carries an assigned, stable identifier:
+
+```python
+@pytest.mark.test_id("PAP_10001")
+def test_header_supplies_the_status_when_no_body_is_sent(...) -> None:
+```
+
+IDs run from `PAP_10001` and are **never reused** - deleting a test retires
+its number rather than freeing it. The suite currently occupies `PAP_10001`
+to `PAP_10042`; the next free identifier is `PAP_10043`.
+
+The identifier exists because **a test's name is not a stable identity**. Any
+store keyed on the name forks a test's history the moment it is renamed, turning
+one test with a long record into two with short ones - silently, since both
+halves still look like valid tests. Names should stay free to improve, and this
+is what makes that free.
+
+`emulators/conftest.py` republishes the marker as a JUnit `<property>` at
+collection time. It sits one level above both `tests/` and `image_tests/` so the
+rule is defined exactly once - a copy in each sibling would be two rules, and the
+copy that stops matching is the one nobody notices. This suite reports through
+JUnit XML only, so `user_properties` is the whole delivery mechanism.
+
+The consumer is
+[PortfolioTestInsights](https://github.com/apolskiy/PortfolioTestInsights),
+which keeps this suite's results past GitHub's 90-day artifact retention. It
+keys on `COALESCE(test_id, test_uid)`, so history recorded before the IDs
+existed still stitches to history recorded after.
 
 ## Repository layout
 
